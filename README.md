@@ -5,8 +5,9 @@ A professional-grade F1 prediction system with advanced ML pipeline trained on 2
 ## Features
 
 ### Data & Storage
-- **Multi-Year Data**: Complete 2023-2025 seasons from FastF1 API with automatic caching
-- **SQLite Database**: 11-table schema with drivers, teams, races, results, predictions, and telemetry
+- **Multi-Year Data**: Complete 2023-2025 seasons from FastF1 API with Redis caching
+- **PostgreSQL Database**: 11-table schema with drivers, teams, races, results, predictions, and telemetry
+- **Redis Caching**: Fast in-memory caching for F1 data (no local file storage)
 - **Schema Migrations**: Automatic database upgrades without data loss
 - **Telemetry Storage**: JSON files for detailed lap-by-lap telemetry data
 
@@ -28,6 +29,22 @@ A professional-grade F1 prediction system with advanced ML pipeline trained on 2
 
 ## Setup
 
+### Prerequisites
+
+You'll need PostgreSQL and Redis running. The easiest way is using Docker:
+
+```bash
+docker-compose up -d
+```
+
+This will start:
+- PostgreSQL on port 5432
+- Redis on port 6379
+
+Alternatively, install them manually and configure via environment variables (see `.env.example`).
+
+### Installation Steps
+
 1. **Install dependencies:**
 ```bash
 pip install -r requirements.txt
@@ -40,18 +57,26 @@ Required packages include:
 - `scikit-learn`, `xgboost`, `lightgbm`, `catboost` - ML models
 - `shap` - Model explainability
 - `pandas`, `numpy` - Data processing
+- `psycopg2-binary` - PostgreSQL adapter
+- `redis` - Redis client
 
-2. **Cache F1 data (2023-2025 seasons):**
+2. **Configure environment (optional):**
 ```bash
-python src/data_fetcher.py
+cp .env.example .env
+# Edit .env with your PostgreSQL and Redis settings
 ```
-*Note: First run takes 45-90 minutes depending on internet speed*
 
 3. **Initialize database:**
 ```bash
 python src/database.py
 ```
-*Creates SQLite database with all required tables and applies schema migrations*
+*Creates PostgreSQL database with all required tables and applies schema migrations*
+
+4. **Cache F1 data (2023-2025 seasons):**
+```bash
+python src/data_fetcher.py
+```
+*Note: Data is cached in Redis, not in local files. First run takes 45-90 minutes depending on internet speed*
 
 ## Usage
 
@@ -99,17 +124,17 @@ The dashboard provides 7 comprehensive pages:
 ```
 Formula_1_db/
 ├── src/
-│   ├── data_fetcher.py         # FastF1 data fetching and caching (2023-2025)
-│   ├── database.py             # SQLite database with migrations
-│   ├── populate_database.py    # Populate DB from FastF1 cache
+│   ├── data_fetcher.py         # FastF1 data fetching with Redis caching
+│   ├── database.py             # PostgreSQL database with migrations
+│   ├── populate_database.py    # Populate DB from Redis cache
 │   ├── telemetry_handler.py    # JSON telemetry storage
 │   └── streamlit_app.py        # 7-page Streamlit dashboard
 ├── notebooks/
 │   └── f1_2026_predictions.ipynb  # Complete ML training & 2026 predictions
-├── cache/                       # FastF1 cached data (2023-2025)
 ├── models/                      # Trained models, predictions, visualizations
 ├── requirements.txt             # Python dependencies
-├── f1_data.db                  # SQLite database
+├── docker-compose.yml           # PostgreSQL + Redis setup
+├── .env.example                 # Environment configuration template
 └── README.md                   # This file
 ```
 
@@ -175,7 +200,7 @@ Formula_1_db/
 
 ## Database Schema
 
-The SQLite database includes:
+The PostgreSQL database includes:
 - **drivers** - Driver information with car numbers and teams (by year)
 - **teams** - Constructor/team information
 - **races** - Race calendar and event details
@@ -187,24 +212,29 @@ The SQLite database includes:
 - **tyre_stats** - Tyre compound performance data
 - **sessions** - Session-level metadata
 
-## Offline Mode
+## Caching & Performance
 
 Once data is cached:
-1. **FastF1 cache** - Stored locally in `cache/` directory (2023-2025)
-2. **SQLite database** - Persists all structured data in `f1_data.db`
+1. **Redis cache** - Fast in-memory caching of F1 data (2023-2025)
+2. **PostgreSQL database** - Persists all structured data
 3. **JSON telemetry** - Detailed telemetry snapshots
 4. **Trained models** - Saved in `models/` directory with metadata
-5. **No internet required** - System fully functional offline after initial setup
+5. **High performance** - Redis caching eliminates slow local file I/O
 
 ## Performance Notes
 
-- **Data fetching**: 45-90 minutes for first run (3 seasons)
-- **Subsequent runs**: 1-2 minutes (uses cache)
+- **Data fetching**: 45-90 minutes for first run (3 seasons) - cached in Redis
+- **Subsequent runs**: Instant (uses Redis cache)
 - **Model training**: 5-15 minutes depending on features
 - **Predictions**: Near-instant once models are trained
-- **Database queries**: Optimized with indexes for fast retrieval
+- **Database queries**: Optimized with PostgreSQL indexes for fast retrieval
+- **Cache performance**: Redis provides significantly faster data access than local file I/O
 
 ## Troubleshooting
+
+**Connection errors**: Ensure PostgreSQL and Redis are running (`docker-compose up -d`)
+
+**Environment variables**: Copy `.env.example` to `.env` and configure if not using defaults
 
 **Missing columns error**: Run `python src/database.py` to apply schema migrations
 
@@ -213,6 +243,8 @@ Once data is cached:
 **Streamlit not found**: Use `python -m streamlit run src/streamlit_app.py`
 
 **No data in dashboard**: Run data fetcher and database initialization first
+
+**Redis connection failed**: Check Redis is running on configured host/port
 
 ## License
 

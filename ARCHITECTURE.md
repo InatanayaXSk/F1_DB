@@ -13,15 +13,15 @@
                                             │ Cache
                                             ▼
                         ┌───────────────────────────────┐
-                        │    Local Cache Directory      │
-                        │  (Offline-Ready F1 Data)      │
+                        │      Redis Cache Server       │
+                        │   (Fast In-Memory Caching)    │
                         └───────────┬───────────────────┘
                                     │
                      ┌──────────────┼──────────────┐
                      │              │              │
                      ▼              ▼              ▼
          ┌──────────────────┐  ┌──────────────┐  ┌──────────────┐
-         │  SQLite Database │  │ JSON Files   │  │  ML Models   │
+         │PostgreSQL Database│  │ JSON Files   │  │  ML Models   │
          │  (database.py)   │  │ (telemetry   │  │ (ml_models   │
          │                  │  │  _handler.py)│  │  .py)        │
          │ • Drivers        │  │              │  │              │
@@ -63,7 +63,7 @@
    - Historical data cached for offline use
 
 2. **Storage**
-   - Structured data → SQLite Database
+   - Structured data → PostgreSQL Database
    - Telemetry data → JSON Files
    - Trained models → Pickle Files
 
@@ -86,10 +86,10 @@
 
 ## Key Features
 
-### Offline Mode ✓
+### High-Performance Caching ✓
 Once data is cached:
-- FastF1 cache: `cache/`
-- Database: `f1_data.db`
+- FastF1 cache: Redis (in-memory)
+- Database: PostgreSQL
 - Telemetry: `telemetry_data/`
 - Models: `models/`
 
@@ -112,7 +112,7 @@ Once data is cached:
 ## Technology Stack
 
 - **Data**: FastF1, Pandas, NumPy
-- **Storage**: SQLite, JSON
+- **Storage**: PostgreSQL, Redis, JSON
 - **ML**: Scikit-learn (GradientBoosting, RandomForest)
 - **Visualization**: Streamlit, Plotly, Matplotlib, Seaborn
 - **Notebook**: Jupyter
@@ -122,10 +122,11 @@ Once data is cached:
 ```
 data_fetcher.py
     ├─ fastf1
+    ├─ redis
     └─ pandas
 
 database.py
-    ├─ sqlite3
+    ├─ psycopg2
     └─ pandas
 
 telemetry_handler.py
