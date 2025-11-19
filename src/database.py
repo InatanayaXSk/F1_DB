@@ -524,5 +524,22 @@ def main():
         print(f"  - {table[0]}")
 
 
+def get_database_instance():
+    """
+    Factory function to get appropriate database instance based on configuration
+    Returns enhanced database if PostgreSQL is configured, otherwise SQLite
+    """
+    try:
+        from config import Config
+        if Config.DB_TYPE == 'postgresql' or Config.REDIS_ENABLED:
+            from database_enhanced import F1DatabaseEnhanced
+            return F1DatabaseEnhanced()
+    except ImportError:
+        pass
+    
+    # Fallback to SQLite
+    return F1Database()
+
+
 if __name__ == "__main__":
     main()
