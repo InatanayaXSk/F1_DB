@@ -1,0 +1,423 @@
+# F1 Database ER Diagram and Schema
+
+## Entity-Relationship Diagram (Mermaid)
+
+```mermaid
+erDiagram
+    DRIVERS {
+        int driver_id PK
+        int driver_number "NOT NULL"
+        string abbreviation
+        string full_name
+        string team_name
+        int year "NOT NULL"
+    }
+    
+    TEAMS {
+        int team_id PK
+        string team_name "NOT NULL"
+        int year "NOT NULL"
+    }
+    
+    RACES {
+        int race_id PK
+        int year "NOT NULL"
+        int round_number "NOT NULL"
+        string event_name "NOT NULL"
+        string country
+        string location
+        string event_date
+    }
+    
+    SESSIONS {
+        int session_id PK
+        int race_id FK "NOT NULL"
+        string session_type "NOT NULL"
+        string session_date
+        string weather_conditions
+        float track_temp
+        float air_temp
+    }
+    
+    QUALIFYING_RESULTS {
+        int result_id PK
+        int race_id FK "NOT NULL"
+        int driver_number "NOT NULL"
+        int position
+        string q1_time
+        string q2_time
+        string q3_time
+    }
+    
+    SPRINT_RESULTS {
+        int result_id PK
+        int race_id FK "NOT NULL"
+        int driver_number "NOT NULL"
+        int position
+        float points
+        string status
+    }
+    
+    RACE_RESULTS {
+        int result_id PK
+        int race_id FK "NOT NULL"
+        int driver_number "NOT NULL"
+        int position
+        float points
+        int grid_position
+        string status
+        string fastest_lap_time
+    }
+    
+    PREDICTIONS {
+        int prediction_id PK
+        int race_id FK "NOT NULL"
+        string session_type "NOT NULL"
+        int driver_number "NOT NULL"
+        int predicted_position
+        float predicted_time
+        float confidence
+        float top10_probability
+        string model_type
+        string prediction_date
+        string features_json
+        string shap_values_json
+    }
+    
+    AGGREGATED_LAPS {
+        int lap_id PK
+        int race_id FK "NOT NULL"
+        string session_type "NOT NULL"
+        int driver_number "NOT NULL"
+        int lap_number "NOT NULL"
+        float lap_time
+        float sector1_time
+        float sector2_time
+        float sector3_time
+        string compound
+        int tyre_life
+        string track_status
+        int is_personal_best
+    }
+    
+    TYRE_STATS {
+        int tyre_stat_id PK
+        int race_id FK "NOT NULL"
+        string session_type "NOT NULL"
+        int driver_number "NOT NULL"
+        string compound "NOT NULL"
+        int total_laps
+        float avg_lap_time
+        float degradation_slope
+        float best_lap_time
+        int stint_number
+    }
+    
+    RACES ||--o{ SESSIONS : "has"
+    RACES ||--o{ QUALIFYING_RESULTS : "has"
+    RACES ||--o{ SPRINT_RESULTS : "has"
+    RACES ||--o{ RACE_RESULTS : "has"
+    RACES ||--o{ PREDICTIONS : "has"
+    RACES ||--o{ AGGREGATED_LAPS : "records"
+    RACES ||--o{ TYRE_STATS : "records"
+    
+    DRIVERS ||--o{ QUALIFYING_RESULTS : "participates"
+    DRIVERS ||--o{ SPRINT_RESULTS : "participates"
+    DRIVERS ||--o{ RACE_RESULTS : "participates"
+    DRIVERS ||--o{ PREDICTIONS : "receives"
+    DRIVERS ||--o{ AGGREGATED_LAPS : "drives"
+    DRIVERS ||--o{ TYRE_STATS : "uses"
+    
+    TEAMS ||--o{ DRIVERS : "employs"
+```
+
+## Normalized Schema (3NF)
+
+### Normalization Analysis
+
+The database schema is designed to satisfy Third Normal Form (3NF) requirements:
+
+#### First Normal Form (1NF)
+✓ All tables have atomic values
+✓ Each column contains values of a single type
+✓ Each column has a unique name
+✓ Order of data storage doesn't matter
+
+#### Second Normal Form (2NF)
+✓ All 1NF requirements met
+✓ No partial dependencies (all non-key attributes depend on the entire primary key)
+✓ All tables use single-column primary keys or composite keys where appropriate
+
+#### Third Normal Form (3NF)
+✓ All 2NF requirements met
+✓ No transitive dependencies (non-key attributes don't depend on other non-key attributes)
+✓ Each non-key attribute is functionally dependent only on the primary key
+
+### Unique Constraints and Composite Keys
+
+#### DRIVERS Table
+- **Primary Key**: `driver_id`
+- **Unique Constraint**: `(driver_number, year)` - A driver number is unique per season
+- **Composite Key**: None needed as surrogate key exists
+- **Domain**: Stores driver information with year-specific team associations
+
+#### TEAMS Table
+- **Primary Key**: `team_id`
+- **Unique Constraint**: `(team_name, year)` - A team name is unique per season
+- **Composite Key**: None needed as surrogate key exists
+- **Domain**: Stores team/constructor information by season
+
+#### RACES Table
+- **Primary Key**: `race_id`
+- **Unique Constraint**: `(year, round_number)` - Each round is unique within a season
+- **Composite Key**: None needed as surrogate key exists
+- **Domain**: Stores race calendar events with location and date information
+
+#### SESSIONS Table
+- **Primary Key**: `session_id`
+- **Unique Constraint**: `(race_id, session_type)` - Each session type occurs once per race
+- **Foreign Keys**: `race_id` → RACES(race_id)
+- **Domain**: Stores session-level metadata including weather conditions
+
+#### QUALIFYING_RESULTS Table
+- **Primary Key**: `result_id`
+- **Unique Constraint**: Implicit `(race_id, driver_number)` - Each driver has one qualifying result per race
+- **Foreign Keys**: `race_id` → RACES(race_id)
+- **Domain**: Stores Q1, Q2, Q3 qualifying session times and positions
+
+#### SPRINT_RESULTS Table
+- **Primary Key**: `result_id`
+- **Unique Constraint**: Implicit `(race_id, driver_number)` - Each driver has one sprint result per race
+- **Foreign Keys**: `race_id` → RACES(race_id)
+- **Domain**: Stores sprint race results with points and finishing status
+
+#### RACE_RESULTS Table
+- **Primary Key**: `result_id`
+- **Unique Constraint**: Implicit `(race_id, driver_number)` - Each driver has one race result per race
+- **Foreign Keys**: `race_id` → RACES(race_id)
+- **Domain**: Stores main race results including grid position, points, status, and fastest lap
+
+#### PREDICTIONS Table
+- **Primary Key**: `prediction_id`
+- **Unique Constraint**: Implicit `(race_id, session_type, driver_number, model_type)` - Each model generates one prediction per driver per session
+- **Foreign Keys**: `race_id` → RACES(race_id)
+- **Domain**: Stores ML model predictions with confidence scores and SHAP values
+
+#### AGGREGATED_LAPS Table
+- **Primary Key**: `lap_id`
+- **Unique Constraint**: Implicit `(race_id, session_type, driver_number, lap_number)` - Each lap is unique
+- **Foreign Keys**: `race_id` → RACES(race_id)
+- **Domain**: Stores detailed lap-by-lap telemetry including sector times and tire information
+
+#### TYRE_STATS Table
+- **Primary Key**: `tyre_stat_id`
+- **Unique Constraint**: Implicit `(race_id, session_type, driver_number, compound, stint_number)` - Each stint with a compound is unique
+- **Foreign Keys**: `race_id` → RACES(race_id)
+- **Domain**: Stores tire performance statistics including degradation analysis
+
+## Relationship Cardinalities
+
+### One-to-Many Relationships
+
+1. **RACES → SESSIONS**: One race has multiple sessions (Practice, Qualifying, Sprint, Race)
+   - Cardinality: 1:N
+   - A race must have at least one session
+   - Sessions cannot exist without a race
+
+2. **RACES → QUALIFYING_RESULTS**: One race has multiple qualifying results (one per driver)
+   - Cardinality: 1:N
+   - A race may have 0-20 qualifying results
+   - Results cannot exist without a race
+
+3. **RACES → SPRINT_RESULTS**: One race may have sprint results
+   - Cardinality: 1:N
+   - A race may have 0 sprint results (not all races have sprints)
+   - Sprint results cannot exist without a race
+
+4. **RACES → RACE_RESULTS**: One race has multiple race results (one per driver)
+   - Cardinality: 1:N
+   - A race should have 1-20 race results
+   - Results cannot exist without a race
+
+5. **RACES → PREDICTIONS**: One race has multiple predictions (multiple drivers × multiple models × multiple session types)
+   - Cardinality: 1:N
+   - Predictions are optional
+   - Predictions reference races
+
+6. **RACES → AGGREGATED_LAPS**: One race has many laps across all drivers
+   - Cardinality: 1:N
+   - Laps are detailed telemetry data
+   - Laps belong to specific races
+
+7. **RACES → TYRE_STATS**: One race has tyre statistics for multiple drivers
+   - Cardinality: 1:N
+   - Tyre stats are aggregated per stint
+   - Stats belong to specific races
+
+### Many-to-Many Relationships (Resolved)
+
+1. **DRIVERS ↔ TEAMS**: Many-to-many through year association
+   - A driver can drive for different teams in different years
+   - A team has multiple drivers each year
+   - Resolved by including `team_name` and `year` in DRIVERS table
+   - This denormalization is intentional for query performance
+
+2. **DRIVERS ↔ RACES**: Many-to-many through results tables
+   - A driver participates in many races
+   - A race has many drivers
+   - Resolved through QUALIFYING_RESULTS, SPRINT_RESULTS, and RACE_RESULTS junction tables
+
+## Data Integrity Constraints
+
+### Referential Integrity
+- All foreign keys enforce referential integrity
+- CASCADE or RESTRICT policies on delete (implementation-specific)
+- NULL not allowed in foreign key columns
+
+### Domain Constraints
+- `year`: Integer, valid F1 season years (1950-present)
+- `round_number`: Integer, 1-25 (typical F1 season)
+- `position`: Integer, 1-20 (number of drivers)
+- `points`: Float, 0-26 (F1 points system + fastest lap bonus)
+- `driver_number`: Integer, 1-99 (FIA regulations)
+- `lap_time`, `sector_times`: Float, in seconds
+- `confidence`, `top10_probability`: Float, 0.0-1.0
+
+### Business Rules
+1. Each driver can only have one result per race per session type
+2. Driver numbers are unique per season but can be reused across seasons
+3. Team names are unique per season
+4. Races are uniquely identified by year and round number
+5. Session types are restricted to valid F1 sessions (FP1, FP2, FP3, Q, S, R)
+6. Predictions reference future or past races but always link to existing race_id
+
+## Indexing Strategy
+
+### Recommended Indexes
+
+```sql
+-- Primary keys (automatically indexed)
+CREATE INDEX idx_drivers_pk ON drivers(driver_id);
+CREATE INDEX idx_teams_pk ON teams(team_id);
+CREATE INDEX idx_races_pk ON races(race_id);
+
+-- Unique constraints (automatically indexed)
+CREATE UNIQUE INDEX idx_drivers_number_year ON drivers(driver_number, year);
+CREATE UNIQUE INDEX idx_teams_name_year ON teams(team_name, year);
+CREATE UNIQUE INDEX idx_races_year_round ON races(year, round_number);
+CREATE UNIQUE INDEX idx_sessions_race_type ON sessions(race_id, session_type);
+
+-- Foreign key indexes for join performance
+CREATE INDEX idx_qualifying_race ON qualifying_results(race_id);
+CREATE INDEX idx_qualifying_driver ON qualifying_results(driver_number);
+CREATE INDEX idx_sprint_race ON sprint_results(race_id);
+CREATE INDEX idx_sprint_driver ON sprint_results(driver_number);
+CREATE INDEX idx_race_results_race ON race_results(race_id);
+CREATE INDEX idx_race_results_driver ON race_results(driver_number);
+CREATE INDEX idx_predictions_race ON predictions(race_id);
+CREATE INDEX idx_predictions_driver ON predictions(driver_number);
+CREATE INDEX idx_laps_race ON aggregated_laps(race_id);
+CREATE INDEX idx_laps_driver ON aggregated_laps(driver_number);
+CREATE INDEX idx_tyres_race ON tyre_stats(race_id);
+CREATE INDEX idx_tyres_driver ON tyre_stats(driver_number);
+
+-- Query optimization indexes
+CREATE INDEX idx_races_year ON races(year);
+CREATE INDEX idx_predictions_session ON predictions(session_type);
+CREATE INDEX idx_laps_session ON aggregated_laps(session_type);
+```
+
+## Schema Diagram (Text)
+
+```
+┌──────────────────┐
+│     DRIVERS      │
+├──────────────────┤
+│ driver_id (PK)   │
+│ driver_number    │◄──────┐
+│ abbreviation     │       │
+│ full_name        │       │
+│ team_name        │       │
+│ year             │       │
+└──────────────────┘       │
+                           │ (driver_number reference)
+┌──────────────────┐       │
+│      TEAMS       │       │
+├──────────────────┤       │
+│ team_id (PK)     │       │
+│ team_name        │       │
+│ year             │       │
+└──────────────────┘       │
+                           │
+┌──────────────────┐       │
+│      RACES       │       │
+├──────────────────┤       │
+│ race_id (PK)     │       │
+│ year             │       │
+│ round_number     │       │
+│ event_name       │       │
+│ country          │       │
+│ location         │       │
+│ event_date       │       │
+└────────┬─────────┘       │
+         │                 │
+         │ 1:N             │
+         ├─────────────────┼─────────────────┬──────────────────┬──────────────────┬──────────────────┐
+         ▼                 ▼                 ▼                  ▼                  ▼                  ▼
+┌──────────────────┐ ┌──────────────────┐ ┌──────────────────┐ ┌──────────────────┐ ┌──────────────────┐ ┌──────────────────┐
+│    SESSIONS      │ │ QUALIFYING_      │ │ SPRINT_RESULTS   │ │  RACE_RESULTS    │ │   PREDICTIONS    │ │ AGGREGATED_LAPS  │
+├──────────────────┤ │    RESULTS       │ ├──────────────────┤ ├──────────────────┤ ├──────────────────┤ ├──────────────────┤
+│ session_id (PK)  │ ├──────────────────┤ │ result_id (PK)   │ │ result_id (PK)   │ │ prediction_id(PK)│ │ lap_id (PK)      │
+│ race_id (FK)     │ │ result_id (PK)   │ │ race_id (FK)     │ │ race_id (FK)     │ │ race_id (FK)     │ │ race_id (FK)     │
+│ session_type     │ │ race_id (FK)     │ │ driver_number    │ │ driver_number    │ │ session_type     │ │ session_type     │
+│ session_date     │ │ driver_number    │ │ position         │ │ position         │ │ driver_number    │ │ driver_number    │
+│ weather_cond...  │ │ position         │ │ points           │ │ points           │ │ predicted_pos... │ │ lap_number       │
+│ track_temp       │ │ q1_time          │ │ status           │ │ grid_position    │ │ predicted_time   │ │ lap_time         │
+│ air_temp         │ │ q2_time          │ └──────────────────┘ │ status           │ │ confidence       │ │ sector1_time     │
+└──────────────────┘ │ q3_time          │                      │ fastest_lap_time │ │ top10_prob...    │ │ sector2_time     │
+                     └──────────────────┘                      └──────────────────┘ │ model_type       │ │ sector3_time     │
+                                                                                     │ prediction_date  │ │ compound         │
+                                                                                     │ features_json    │ │ tyre_life        │
+                                                                                     │ shap_values_json │ │ track_status     │
+                                                                                     └──────────────────┘ │ is_personal_best │
+                                                                                                          └──────────────────┘
+         │
+         ├─────────────────┐
+         ▼                 ▼
+┌──────────────────┐
+│   TYRE_STATS     │
+├──────────────────┤
+│ tyre_stat_id(PK) │
+│ race_id (FK)     │
+│ session_type     │
+│ driver_number    │
+│ compound         │
+│ total_laps       │
+│ avg_lap_time     │
+│ degradation_...  │
+│ best_lap_time    │
+│ stint_number     │
+└──────────────────┘
+```
+
+## Summary
+
+This ER diagram represents a fully normalized (3NF) database schema for the F1 Prediction System with:
+
+- **10 core entities** with proper primary keys
+- **Appropriate unique constraints** to prevent data duplication
+- **Foreign key relationships** maintaining referential integrity
+- **No redundant attributes** - each fact stored once
+- **Proper cardinalities** reflecting real-world F1 relationships
+- **Domain integrity** with appropriate data types
+- **Optimized for queries** with strategic indexing
+- **Preservation of domain meaning** - all entities represent real F1 concepts
+
+The schema supports:
+- Historical data tracking (year-based)
+- Multiple session types per race
+- Detailed telemetry and lap data
+- ML predictions with explainability
+- Tire strategy analysis
+- Weather condition tracking
+- Complete race results across all formats (Qualifying, Sprint, Race)
