@@ -29,23 +29,38 @@ A professional-grade F1 prediction system with advanced ML pipeline trained on 2
 
 ## Setup
 
-### Prerequisites
+### Quick Start (Recommended)
 
-You'll need PostgreSQL and Redis running. The easiest way is using Docker:
+Run the automated setup script:
+```bash
+python setup.py
+```
 
+This will:
+1. Check Docker installation
+2. Start PostgreSQL and Redis containers
+3. Install Python dependencies
+4. Initialize the database
+
+### Manual Setup
+
+If you prefer manual setup or need custom configuration:
+
+#### 1. Start PostgreSQL and Redis
+
+Using Docker (recommended):
 ```bash
 docker-compose up -d
 ```
 
-This will start:
+This starts:
 - PostgreSQL on port 5432
 - Redis on port 6379
 
-Alternatively, install them manually and configure via environment variables (see `.env.example`).
+Or install manually and configure via environment variables (see `.env.example`).
 
-### Installation Steps
+#### 2. Install Python dependencies
 
-1. **Install dependencies:**
 ```bash
 pip install -r requirements.txt
 ```
@@ -60,19 +75,21 @@ Required packages include:
 - `psycopg2-binary` - PostgreSQL adapter
 - `redis` - Redis client
 
-2. **Configure environment (optional):**
+#### 3. Configure environment (optional)
+
 ```bash
 cp .env.example .env
 # Edit .env with your PostgreSQL and Redis settings
 ```
 
-3. **Initialize database:**
+#### 4. Initialize database
+
 ```bash
 python src/database.py
 ```
 *Creates PostgreSQL database with all required tables and applies schema migrations*
 
-4. **Cache F1 data (2023-2025 seasons):**
+#### 5. Cache F1 data (2023-2025 seasons)
 ```bash
 python src/data_fetcher.py
 ```
