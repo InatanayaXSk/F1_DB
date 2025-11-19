@@ -1,9 +1,10 @@
 """
-SQLite Database Module
-Manages F1 data storage in SQLite database
+PostgreSQL Database Module
+Manages F1 data storage in PostgreSQL database
 """
 
-import sqlite3
+import psycopg2
+import psycopg2.extras
 import pandas as pd
 import os
 from datetime import datetime
@@ -11,19 +12,34 @@ import json
 
 
 class F1Database:
-    """Manages SQLite database for F1 data"""
+    """Manages PostgreSQL database for F1 data"""
     
-    def __init__(self, db_path='f1_data.db'):
-        """Initialize database connection"""
-        if not os.path.isabs(db_path):
-            db_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), db_path)
-        self.db_path = db_path
+    def __init__(self, db_config=None):
+        """Initialize database connection
+        
+        Args:
+            db_config: Dictionary with PostgreSQL connection parameters:
+                - host: Database host (default: localhost)
+                - port: Database port (default: 5432)
+                - database: Database name (default: f1_data)
+                - user: Database user (default: postgres)
+                - password: Database password (default: postgres)
+        """
+        if db_config is None:
+            db_config = {
+                'host': os.getenv('POSTGRES_HOST', 'localhost'),
+                'port': os.getenv('POSTGRES_PORT', '5432'),
+                'database': os.getenv('POSTGRES_DB', 'f1_data'),
+                'user': os.getenv('POSTGRES_USER', 'postgres'),
+                'password': os.getenv('POSTGRES_PASSWORD', 'postgres')
+            }
+        self.db_config = db_config
         self.conn = None
         self.initialize_database()
     
     def connect(self):
         """Create database connection"""
-        self.conn = sqlite3.connect(self.db_path)
+        self.conn = psycopg2.connect(**self.db_config)
         return self.conn
     
     def close(self):
@@ -39,7 +55,7 @@ class F1Database:
         # Drivers table
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS drivers (
-                driver_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                driver_id SERIAL PRIMARY KEY,
                 driver_number INTEGER,
                 abbreviation TEXT,
                 full_name TEXT,
@@ -52,7 +68,7 @@ class F1Database:
         # Teams table
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS teams (
-                team_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                team_id SERIAL PRIMARY KEY,
                 team_name TEXT,
                 year INTEGER,
                 UNIQUE(team_name, year)
@@ -62,7 +78,7 @@ class F1Database:
         # Races table
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS races (
-                race_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                race_id SERIAL PRIMARY KEY,
                 year INTEGER,
                 round_number INTEGER,
                 event_name TEXT,
@@ -76,7 +92,7 @@ class F1Database:
         # Qualifying results table
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS qualifying_results (
-                result_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                result_id SERIAL PRIMARY KEY,
                 race_id INTEGER,
                 driver_number INTEGER,
                 position INTEGER,
@@ -90,7 +106,7 @@ class F1Database:
         # Sprint results table
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS sprint_results (
-                result_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                result_id SERIAL PRIMARY KEY,
                 race_id INTEGER,
                 driver_number INTEGER,
                 position INTEGER,
@@ -103,7 +119,7 @@ class F1Database:
         # Race results table
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS race_results (
-                result_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                result_id SERIAL PRIMARY KEY,
                 race_id INTEGER,
                 driver_number INTEGER,
                 position INTEGER,
@@ -118,7 +134,7 @@ class F1Database:
         # Predictions table
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS predictions (
-                prediction_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                prediction_id SERIAL PRIMARY KEY,
                 race_id INTEGER,
                 session_type TEXT,
                 driver_number INTEGER,
@@ -137,7 +153,7 @@ class F1Database:
         # Aggregated laps table
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS aggregated_laps (
-                lap_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                lap_id SERIAL PRIMARY KEY,
                 race_id INTEGER,
                 session_type TEXT,
                 driver_number INTEGER,
@@ -157,7 +173,7 @@ class F1Database:
         # Tyre stats table
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS tyre_stats (
-                tyre_stat_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                tyre_stat_id SERIAL PRIMARY KEY,
                 race_id INTEGER,
                 session_type TEXT,
                 driver_number INTEGER,
@@ -174,7 +190,7 @@ class F1Database:
         # Sessions table for tracking processed sessions
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS sessions (
-                session_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                session_id SERIAL PRIMARY KEY,
                 race_id INTEGER,
                 session_type TEXT,
                 session_date TEXT,
@@ -188,7 +204,7 @@ class F1Database:
         
         conn.commit()
         self.close()
-        print(f"✓ Database initialized at {self.db_path}")
+        print(f"✓ Database initialized: {self.db_config['database']} on {self.db_config['host']}")
         
         # Run migrations
         self.upgrade_database()
@@ -200,8 +216,12 @@ class F1Database:
         
         try:
             # Check if predicted_time column exists in predictions table
-            cursor.execute("PRAGMA table_info(predictions)")
-            columns = [col[1] for col in cursor.fetchall()]
+            cursor.execute("""
+                SELECT column_name 
+                FROM information_schema.columns 
+                WHERE table_name = 'predictions'
+            """)
+            columns = [col[0] for col in cursor.fetchall()]
             
             # Add missing columns to predictions table if needed
             if 'predicted_time' not in columns:
@@ -490,7 +510,12 @@ class F1Database:
         """Get all table names in the database"""
         conn = self.connect()
         cursor = conn.cursor()
-        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name")
+        cursor.execute("""
+            SELECT table_name 
+            FROM information_schema.tables 
+            WHERE table_schema = 'public' 
+            ORDER BY table_name
+        """)
         tables = [row[0] for row in cursor.fetchall()]
         self.close()
         return tables
@@ -499,11 +524,11 @@ class F1Database:
 
 def main():
     """Main function to demonstrate database operations"""
-    db = F1Database('f1_data.db')
+    db = F1Database()
     
     print("\nF1 Database Manager")
     print("=" * 50)
-    print(f"Database location: {db.db_path}")
+    print(f"Database: {db.db_config['database']} on {db.db_config['host']}:{db.db_config['port']}")
     
     # Example: Insert sample data
     db.insert_team("Red Bull Racing", 2024)
@@ -513,15 +538,11 @@ def main():
     print("\n✓ Sample data inserted")
     
     # Show all tables
-    conn = db.connect()
-    cursor = conn.cursor()
-    cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
-    tables = cursor.fetchall()
-    db.close()
+    tables = db.get_table_names()
     
     print("\nDatabase tables:")
     for table in tables:
-        print(f"  - {table[0]}")
+        print(f"  - {table}")
 
 
 if __name__ == "__main__":

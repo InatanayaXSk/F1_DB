@@ -74,13 +74,13 @@ def show_home():
     st.subheader("System Features")
     
     features = {
-        "🔄 Data Collection": "FastF1 API with automatic caching (2023-2025)",
-        "💾 Storage": "SQLite for structured data, JSON for telemetry",
+        "🔄 Data Collection": "FastF1 API with Redis caching (2023-2025)",
+        "💾 Storage": "PostgreSQL for structured data, JSON for telemetry",
         "🤖 Machine Learning": "Multiple ensemble models with feature importance",
         "📊 2026 Predictions": "Race-by-race predictions for entire 2026 season",
         "🏁 Championship Projections": "Projected driver standings based on predictions",
         "📈 Explainability": "Feature importance and confidence scores",
-        "🌐 Offline Mode": "Works without internet after caching"
+        "🌐 Offline Mode": "Works without internet after Redis caching"
     }
     
     for feature, description in features.items():
