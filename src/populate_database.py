@@ -1,6 +1,6 @@
 """
 Populate Database with FastF1 Data
-Extracts cached data and populates SQLite database
+Extracts cached data from Redis and populates PostgreSQL database
 """
 
 import fastf1
@@ -11,10 +11,10 @@ from datetime import datetime
 # Add src to path
 sys.path.append(os.path.dirname(__file__))
 from database import F1Database
+from data_fetcher import F1DataFetcher
 
-# Enable cache
-CACHE_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'cache')
-fastf1.Cache.enable_cache(CACHE_DIR)
+# Initialize fetcher with Redis
+fetcher = F1DataFetcher(use_redis=True)
 
 
 def populate_drivers_and_teams(db, year):
@@ -22,7 +22,7 @@ def populate_drivers_and_teams(db, year):
     print(f"\n=== Processing {year} season ===")
     
     try:
-        schedule = fastf1.get_event_schedule(year)
+        schedule = fetcher.fetch_season_schedule(year)
         
         # Get first race with qualifying to extract driver info
         for idx, event in schedule.iterrows():
@@ -30,8 +30,7 @@ def populate_drivers_and_teams(db, year):
             
             try:
                 print(f"Loading {event_name} qualifying...")
-                session = fastf1.get_session(year, event_name, 'Q')
-                session.load()
+                session = fetcher.fetch_session_data(year, event_name, 'Q')
                 
                 # Extract driver information
                 results = session.results
@@ -74,7 +73,7 @@ def populate_races(db, year):
     print(f"\n=== Populating races for {year} ===")
     
     try:
-        schedule = fastf1.get_event_schedule(year)
+        schedule = fetcher.fetch_season_schedule(year)
         
         for idx, event in schedule.iterrows():
             event_name = event['EventName']
@@ -104,7 +103,7 @@ def populate_results(db, year):
     print(f"\n=== Populating results for {year} ===")
     
     try:
-        schedule = fastf1.get_event_schedule(year)
+        schedule = fetcher.fetch_season_schedule(year)
         
         for idx, event in schedule.iterrows():
             event_name = event['EventName']
@@ -121,9 +120,8 @@ def populate_results(db, year):
             # Qualifying results
             try:
                 print(f"Loading {event_name} qualifying results...")
-                quali_session = fastf1.get_session(year, event_name, 'Q')
-                quali_session.load()
-                quali_results = quali_session.results
+                quali_session = fetcher.fetch_session_data(year, event_name, 'Q')
+                quali_results = quali_session.results if quali_session else None
                 
                 if quali_results is not None and len(quali_results) > 0:
                     for _, driver in quali_results.iterrows():
@@ -142,9 +140,8 @@ def populate_results(db, year):
             # Race results
             try:
                 print(f"Loading {event_name} race results...")
-                race_session = fastf1.get_session(year, event_name, 'R')
-                race_session.load()
-                race_results = race_session.results
+                race_session = fetcher.fetch_session_data(year, event_name, 'R')
+                race_results = race_session.results if race_session else None
                 
                 if race_results is not None and len(race_results) > 0:
                     for _, driver in race_results.iterrows():

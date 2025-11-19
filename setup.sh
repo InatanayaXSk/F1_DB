@@ -1,47 +1,25 @@
 #!/bin/bash
 
-# F1 Prediction System Setup Script
+# F1 Prediction System Setup Script (Updated for PostgreSQL + Redis)
 
 echo "=========================================="
 echo "F1 Prediction System Setup"
 echo "=========================================="
 echo ""
 
-# Check Python version
-echo "Checking Python version..."
-python_version=$(python --version 2>&1 | awk '{print $2}')
-echo "✓ Python $python_version"
+echo "⚠️  IMPORTANT: This system now requires PostgreSQL and Redis"
 echo ""
-
-# Install dependencies
-echo "Installing dependencies..."
-pip install -r requirements.txt
+echo "Please use one of the following setup methods:"
 echo ""
-
-# Create necessary directories
-echo "Creating directories..."
-mkdir -p cache
-mkdir -p models
-mkdir -p telemetry_data
-echo "✓ Directories created"
+echo "1. Automated setup (recommended):"
+echo "   python setup.py"
 echo ""
-
-# Initialize database
-echo "Initializing database..."
-python src/database.py
+echo "2. Manual setup with Docker:"
+echo "   docker-compose up -d"
+echo "   pip install -r requirements.txt"
+echo "   python src/database.py"
 echo ""
-
-# Create sample data
-echo "Creating sample data..."
-python demo.py
+echo "3. See MIGRATION.md for detailed instructions"
 echo ""
-
 echo "=========================================="
-echo "Setup Complete!"
-echo "=========================================="
-echo ""
-echo "Next steps:"
-echo "  1. Run Streamlit dashboard: streamlit run src/streamlit_app.py"
-echo "  2. Train ML models: jupyter notebook notebooks/f1_ml_pipeline.ipynb"
-echo "  3. Fetch F1 data (optional): python src/data_fetcher.py"
 echo ""
