@@ -8,7 +8,11 @@ import redis
 import pandas as pd
 from typing import Optional, Any
 from functools import wraps
-from config import Config
+
+try:
+    from .config import Config
+except ImportError:
+    from config import Config
 
 
 class RedisCache:

@@ -4,16 +4,19 @@ Manages F1 data storage with SQLAlchemy ORM and Redis caching
 """
 
 from sqlalchemy import create_engine, Column, Integer, String, Float, Text, ForeignKey, UniqueConstraint
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker, relationship
+from sqlalchemy.orm import sessionmaker, relationship, declarative_base
 from sqlalchemy.pool import StaticPool
 import pandas as pd
 from datetime import datetime
 import json
 from typing import Optional
 
-from config import Config
-from redis_cache import RedisCache, cache_query
+try:
+    from .config import Config
+    from .redis_cache import RedisCache, cache_query
+except ImportError:
+    from config import Config
+    from redis_cache import RedisCache, cache_query
 
 
 Base = declarative_base()
