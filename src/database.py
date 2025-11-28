@@ -9,7 +9,7 @@ import pandas as pd
 import os
 from datetime import datetime
 import json
-
+import numpy as np
 
 class F1Database:
     """Manages PostgreSQL database for F1 data"""
@@ -31,14 +31,19 @@ class F1Database:
                 'port': os.getenv('POSTGRES_PORT', '5432'),
                 'database': os.getenv('POSTGRES_DB', 'f1_data'),
                 'user': os.getenv('POSTGRES_USER', 'postgres'),
-                'password': os.getenv('POSTGRES_PASSWORD', 'postgres')
+                'password': os.getenv('POSTGRES_PASSWORD', 'hdemus')
             }
         self.db_config = db_config
         self.conn = None
+        psycopg2.extensions.register_adapter(np.int64, psycopg2._psycopg.AsIs) 
+        psycopg2.extensions.register_adapter(np.float64, psycopg2._psycopg.AsIs)
         self.initialize_database()
     
     def connect(self):
         """Create database connection"""
+        # Ensure only one connection is open, or handle a pool in a real application
+        if self.conn and not self.conn.closed:
+            return self.conn
         self.conn = psycopg2.connect(**self.db_config)
         return self.conn
     
@@ -46,6 +51,7 @@ class F1Database:
         """Close database connection"""
         if self.conn:
             self.conn.close()
+            self.conn = None # Set to None after closing
     
     def initialize_database(self):
         """Create database tables if they don't exist"""
@@ -219,7 +225,7 @@ class F1Database:
             cursor.execute("""
                 SELECT column_name 
                 FROM information_schema.columns 
-                WHERE table_name = 'predictions'
+                WHERE table_name = 'predictions' AND table_schema = 'public'
             """)
             columns = [col[0] for col in cursor.fetchall()]
             
@@ -243,14 +249,20 @@ class F1Database:
             self.close()
     
     def insert_driver(self, driver_number, abbreviation, full_name, team_name, year):
-        """Insert driver information"""
+        """Insert driver information (uses ON CONFLICT for UPSERT)"""
         conn = self.connect()
         cursor = conn.cursor()
         try:
+            # PostgreSQL equivalent of INSERT OR REPLACE is INSERT...ON CONFLICT UPDATE
+            # The UNIQUE constraint is (driver_number, year)
             cursor.execute('''
-                INSERT OR REPLACE INTO drivers 
+                INSERT INTO drivers 
                 (driver_number, abbreviation, full_name, team_name, year)
-                VALUES (?, ?, ?, ?, ?)
+                VALUES (%s, %s, %s, %s, %s)
+                ON CONFLICT (driver_number, year) DO UPDATE 
+                SET abbreviation = EXCLUDED.abbreviation, 
+                    full_name = EXCLUDED.full_name, 
+                    team_name = EXCLUDED.team_name;
             ''', (driver_number, abbreviation, full_name, team_name, year))
             conn.commit()
         except Exception as e:
@@ -259,32 +271,45 @@ class F1Database:
             self.close()
     
     def insert_team(self, team_name, year):
-        """Insert team information"""
+        """Insert team information (uses ON CONFLICT DO NOTHING)"""
         conn = self.connect()
         cursor = conn.cursor()
         try:
+            # PostgreSQL equivalent of INSERT OR IGNORE
             cursor.execute('''
-                INSERT OR IGNORE INTO teams (team_name, year)
-                VALUES (?, ?)
+                INSERT INTO teams (team_name, year)
+                VALUES (%s, %s) 
+                ON CONFLICT (team_name, year) DO NOTHING;
             ''', (team_name, year))
             conn.commit()
         except Exception as e:
+            # Note: You might want to handle psycopg2 specific exceptions here
             print(f"Error inserting team: {e}")
         finally:
             self.close()
     
     def insert_race(self, year, round_number, event_name, country, location, event_date):
-        """Insert race information"""
+        """Insert race information (uses ON CONFLICT UPDATE)"""
         conn = self.connect()
         cursor = conn.cursor()
         try:
+            # PostgreSQL equivalent of INSERT OR REPLACE
+            # The UNIQUE constraint is (year, round_number)
             cursor.execute('''
-                INSERT OR REPLACE INTO races 
+                INSERT INTO races 
                 (year, round_number, event_name, country, location, event_date)
-                VALUES (?, ?, ?, ?, ?, ?)
+                VALUES (%s, %s, %s, %s, %s, %s)
+                ON CONFLICT (year, round_number) DO UPDATE
+                SET event_name = EXCLUDED.event_name,
+                    country = EXCLUDED.country,
+                    location = EXCLUDED.location,
+                    event_date = EXCLUDED.event_date
+                RETURNING race_id;
             ''', (year, round_number, event_name, country, location, str(event_date)))
+            
+            race_id = cursor.fetchone()[0] if cursor.rowcount > 0 else None
             conn.commit()
-            return cursor.lastrowid
+            return race_id
         except Exception as e:
             print(f"Error inserting race: {e}")
             return None
@@ -299,7 +324,7 @@ class F1Database:
             cursor.execute('''
                 INSERT INTO qualifying_results 
                 (race_id, driver_number, position, q1_time, q2_time, q3_time)
-                VALUES (?, ?, ?, ?, ?, ?)
+                VALUES (%s, %s, %s, %s, %s, %s)
             ''', (race_id, driver_number, position, str(q1), str(q2), str(q3)))
             conn.commit()
         except Exception as e:
@@ -315,7 +340,7 @@ class F1Database:
             cursor.execute('''
                 INSERT INTO race_results 
                 (race_id, driver_number, position, points, grid_position, status, fastest_lap_time)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
+                VALUES (%s, %s, %s, %s, %s, %s, %s)
             ''', (race_id, driver_number, position, points, grid_position, status, str(fastest_lap)))
             conn.commit()
         except Exception as e:
@@ -324,8 +349,8 @@ class F1Database:
             self.close()
     
     def insert_prediction(self, race_id, session_type, driver_number, predicted_position, 
-                         confidence, model_type, features, predicted_time=None, 
-                         top10_probability=None, shap_values=None):
+                          confidence, model_type, features, predicted_time=None, 
+                          top10_probability=None, shap_values=None):
         """Insert prediction result"""
         conn = self.connect()
         cursor = conn.cursor()
@@ -334,10 +359,10 @@ class F1Database:
                 INSERT INTO predictions 
                 (race_id, session_type, driver_number, predicted_position, predicted_time,
                  confidence, top10_probability, model_type, prediction_date, features_json, shap_values_json)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             ''', (race_id, session_type, driver_number, predicted_position, predicted_time,
                   confidence, top10_probability, model_type, datetime.now().isoformat(), 
-                  json.dumps(features), json.dumps(shap_values) if shap_values else None))
+                  json.dumps(features), json.dumps(shap_values) if shap_values is not None else None))
             conn.commit()
         except Exception as e:
             print(f"Error inserting prediction: {e}")
@@ -345,8 +370,8 @@ class F1Database:
             self.close()
     
     def insert_aggregated_lap(self, race_id, session_type, driver_number, lap_number,
-                             lap_time, sector1, sector2, sector3, compound, tyre_life,
-                             track_status, is_personal_best):
+                              lap_time, sector1, sector2, sector3, compound, tyre_life,
+                              track_status, is_personal_best):
         """Insert aggregated lap data"""
         conn = self.connect()
         cursor = conn.cursor()
@@ -356,7 +381,7 @@ class F1Database:
                 (race_id, session_type, driver_number, lap_number, lap_time,
                  sector1_time, sector2_time, sector3_time, compound, tyre_life,
                  track_status, is_personal_best)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             ''', (race_id, session_type, driver_number, lap_number, lap_time,
                   sector1, sector2, sector3, compound, tyre_life, track_status, is_personal_best))
             conn.commit()
@@ -366,7 +391,7 @@ class F1Database:
             self.close()
     
     def insert_tyre_stat(self, race_id, session_type, driver_number, compound,
-                        total_laps, avg_lap_time, degradation_slope, best_lap_time, stint_number):
+                         total_laps, avg_lap_time, degradation_slope, best_lap_time, stint_number):
         """Insert tyre statistics"""
         conn = self.connect()
         cursor = conn.cursor()
@@ -375,7 +400,7 @@ class F1Database:
                 INSERT INTO tyre_stats 
                 (race_id, session_type, driver_number, compound, total_laps,
                  avg_lap_time, degradation_slope, best_lap_time, stint_number)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
             ''', (race_id, session_type, driver_number, compound, total_laps,
                   avg_lap_time, degradation_slope, best_lap_time, stint_number))
             conn.commit()
@@ -385,18 +410,28 @@ class F1Database:
             self.close()
     
     def insert_session(self, race_id, session_type, session_date, weather_conditions=None,
-                      track_temp=None, air_temp=None):
-        """Insert session information"""
+                       track_temp=None, air_temp=None):
+        """Insert session information (uses ON CONFLICT UPDATE)"""
         conn = self.connect()
         cursor = conn.cursor()
         try:
+            # PostgreSQL equivalent of INSERT OR REPLACE
+            # The UNIQUE constraint is (race_id, session_type)
             cursor.execute('''
-                INSERT OR REPLACE INTO sessions 
+                INSERT INTO sessions 
                 (race_id, session_type, session_date, weather_conditions, track_temp, air_temp)
-                VALUES (?, ?, ?, ?, ?, ?)
+                VALUES (%s, %s, %s, %s, %s, %s)
+                ON CONFLICT (race_id, session_type) DO UPDATE
+                SET session_date = EXCLUDED.session_date,
+                    weather_conditions = EXCLUDED.weather_conditions,
+                    track_temp = EXCLUDED.track_temp,
+                    air_temp = EXCLUDED.air_temp
+                RETURNING session_id;
             ''', (race_id, session_type, str(session_date), weather_conditions, track_temp, air_temp))
+            
+            session_id = cursor.fetchone()[0] if cursor.rowcount > 0 else None
             conn.commit()
-            return cursor.lastrowid
+            return session_id
         except Exception as e:
             print(f"Error inserting session: {e}")
             return None
@@ -406,6 +441,7 @@ class F1Database:
     def get_all_races(self):
         """Get all races from database"""
         conn = self.connect()
+        # pandas.read_sql_query supports ? placeholders by default but for consistency, we'll keep the query simple
         df = pd.read_sql_query("SELECT * FROM races ORDER BY year DESC, round_number", conn)
         self.close()
         return df
@@ -413,8 +449,10 @@ class F1Database:
     def get_race_results(self, race_id):
         """Get results for a specific race"""
         conn = self.connect()
+        # pandas.read_sql_query uses psycopg2 adapter when connecting to PostgreSQL, 
+        # which can handle the %s in the query, but the params tuple must be correct.
         df = pd.read_sql_query(
-            "SELECT * FROM race_results WHERE race_id = ? ORDER BY position", 
+            "SELECT * FROM race_results WHERE race_id = %s ORDER BY position", 
             conn, params=(race_id,)
         )
         self.close()
@@ -426,11 +464,12 @@ class F1Database:
         query = "SELECT * FROM predictions WHERE 1=1"
         params = []
         
+        # NOTE: Using %s placeholders for read_sql_query with psycopg2 connection
         if race_id:
-            query += " AND race_id = ?"
+            query += " AND race_id = %s"
             params.append(race_id)
         if session_type:
-            query += " AND session_type = ?"
+            query += " AND session_type = %s"
             params.append(session_type)
         
         query += " ORDER BY predicted_position"
@@ -447,10 +486,8 @@ class F1Database:
         
         conn = self.connect()
         try:
-            if params:
-                df = pd.read_sql_query(query, conn, params=params)
-            else:
-                df = pd.read_sql_query(query, conn)
+            # read_sql_query automatically uses the connection's parameter style (%s)
+            df = pd.read_sql_query(query, conn, params=params)
             return df
         finally:
             self.close()
@@ -461,14 +498,15 @@ class F1Database:
         query = "SELECT * FROM aggregated_laps WHERE 1=1"
         params = []
         
+        # NOTE: Using %s placeholders for read_sql_query with psycopg2 connection
         if race_id:
-            query += " AND race_id = ?"
+            query += " AND race_id = %s"
             params.append(race_id)
         if session_type:
-            query += " AND session_type = ?"
+            query += " AND session_type = %s"
             params.append(session_type)
         if driver_number:
-            query += " AND driver_number = ?"
+            query += " AND driver_number = %s"
             params.append(driver_number)
         
         query += " ORDER BY lap_number"
@@ -482,14 +520,15 @@ class F1Database:
         query = "SELECT * FROM tyre_stats WHERE 1=1"
         params = []
         
+        # NOTE: Using %s placeholders for read_sql_query with psycopg2 connection
         if race_id:
-            query += " AND race_id = ?"
+            query += " AND race_id = %s"
             params.append(race_id)
         if session_type:
-            query += " AND session_type = ?"
+            query += " AND session_type = %s"
             params.append(session_type)
         if driver_number:
-            query += " AND driver_number = ?"
+            query += " AND driver_number = %s"
             params.append(driver_number)
         
         df = pd.read_sql_query(query, conn, params=params if params else None)
@@ -500,7 +539,8 @@ class F1Database:
         """Get session information"""
         conn = self.connect()
         if race_id:
-            df = pd.read_sql_query("SELECT * FROM sessions WHERE race_id = ?", conn, params=(race_id,))
+            # NOTE: Using %s placeholders for read_sql_query with psycopg2 connection
+            df = pd.read_sql_query("SELECT * FROM sessions WHERE race_id = %s", conn, params=(race_id,))
         else:
             df = pd.read_sql_query("SELECT * FROM sessions", conn)
         self.close()
@@ -521,7 +561,6 @@ class F1Database:
         return tables
 
 
-
 def main():
     """Main function to demonstrate database operations"""
     db = F1Database()
@@ -535,7 +574,7 @@ def main():
     db.insert_team("Ferrari", 2024)
     db.insert_team("Mercedes", 2024)
     
-    print("\n✓ Sample data inserted")
+    print("\n✓ Sample data inserted (Teams)")
     
     # Show all tables
     tables = db.get_table_names()

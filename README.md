@@ -6,7 +6,7 @@ A professional-grade F1 prediction system with advanced ML pipeline trained on 2
 
 ### Data & Storage
 - **Multi-Year Data**: Complete 2023-2025 seasons from FastF1 API with Redis caching
-- **PostgreSQL Database**: 11-table schema with drivers, teams, races, results, predictions, and telemetry
+- **PostgreSQL Database**: 11-table schema with drivers, teams, races, results, predictions, and session metadata
 - **Redis Caching**: Fast in-memory caching for F1 data (no local file storage)
 - **Schema Migrations**: Automatic database upgrades without data loss
 - **Telemetry Storage**: JSON files for detailed lap-by-lap telemetry data
@@ -77,10 +77,22 @@ Required packages include:
 
 #### 3. Configure environment (optional)
 
+Windows (Command Prompt):
+```bat
+copy .env.example .env
+```
+
+Windows (PowerShell):
+```powershell
+Copy-Item .env.example .env
+```
+
+macOS/Linux:
 ```bash
 cp .env.example .env
-# Edit .env with your PostgreSQL and Redis settings
 ```
+
+Edit `.env` with your PostgreSQL and Redis settings.
 
 #### 4. Initialize database
 
@@ -94,6 +106,60 @@ python src/database.py
 python src/data_fetcher.py
 ```
 *Note: Data is cached in Redis, not in local files. First run takes 45-90 minutes depending on internet speed*
+
+## Using Local PostgreSQL and Redis (No Docker)
+
+Prerequisites:
+- Install PostgreSQL locally and ensure it's running
+- Install Redis locally and ensure it's running
+
+Setup Steps:
+```bash
+# 1. Create PostgreSQL database
+# macOS/Linux:
+createdb f1_data
+# Windows (psql):
+psql -U postgres -c "CREATE DATABASE f1_data;"
+
+# 2. Configure connection (create .env file)
+# Windows CMD:
+copy .env.example .env
+# PowerShell:
+Copy-Item .env.example .env
+# macOS/Linux:
+cp .env.example .env
+# Edit .env with your local PostgreSQL credentials
+
+# 3. Install Python dependencies
+pip install -r requirements.txt
+
+# 4. Initialize database
+python src/database.py
+
+# 5. Cache F1 data
+python src/data_fetcher.py
+
+# 6. Populate database
+python src/populate_database.py
+
+# 7. Launch dashboard
+python -m streamlit run src/streamlit_app.py
+```
+
+Configuration (.env file):
+```ini
+POSTGRES_HOST=localhost
+POSTGRES_PORT=5432
+POSTGRES_DB=f1_data
+POSTGRES_USER=your_username
+POSTGRES_PASSWORD=your_password
+
+REDIS_HOST=localhost
+REDIS_PORT=6379
+REDIS_DB=0
+```
+
+The application will automatically connect to your local PostgreSQL and Redis servers using these environment variables.
 
 ## Usage
 
@@ -247,21 +313,22 @@ Once data is cached:
 - **Database queries**: Optimized with PostgreSQL indexes for fast retrieval
 - **Cache performance**: Redis provides significantly faster data access than local file I/O
 
-## Troubleshooting
+## Changes
 
-**Connection errors**: Ensure PostgreSQL and Redis are running (`docker-compose up -d`)
+### Database Migration
+- Replaced `sqlite3` with `psycopg2` for PostgreSQL
+- Updated schema syntax (e.g., `AUTOINCREMENT` → `SERIAL`) and table introspection queries
+- Added environment-based configuration via `.env`
 
-**Environment variables**: Copy `.env.example` to `.env` and configure if not using defaults
+### Caching Layer
+- Implemented `RedisCache` class with pickle serialization and 24h TTL
+- Updated F1 data fetcher to use Redis instead of local cache directory
+- All FastF1 data now cached in-memory
 
-**Missing columns error**: Run `python src/database.py` to apply schema migrations
-
-**Import errors**: Ensure all dependencies installed via `pip install -r requirements.txt`
-
-**Streamlit not found**: Use `python -m streamlit run src/streamlit_app.py`
-
-**No data in dashboard**: Run data fetcher and database initialization first
-
-**Redis connection failed**: Check Redis is running on configured host/port
+### Infrastructure
+- Added `docker-compose.yml` for PostgreSQL + Redis
+- Created automated `setup.py` script
+- Updated `.gitignore` to remove cache folder references
 
 ## License
 
