@@ -7,6 +7,9 @@ __pycache__/
 env/
 venv/
 ENV/
+
+# Environment variables
+.env
 build/
 develop-eggs/
 dist/
@@ -26,11 +29,7 @@ wheels/
 # Jupyter Notebook
 .ipynb_checkpoints
 
-# FastF1 cache
-cache/
-fastf1_cache/
-
-# Database
+# Database (SQLite no longer used)
 *.db
 *.sqlite
 *.sqlite3

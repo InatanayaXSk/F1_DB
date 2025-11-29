@@ -1,31 +1,94 @@
 """
 FastF1 Data Fetcher Module
-Handles downloading and caching F1 data using the FastF1 API
+Handles downloading and caching F1 data using the FastF1 API with Redis caching
 """
 
 import fastf1
 import pandas as pd
 import os
 import json
+import pickle
 from datetime import datetime
+import redis
 
-# Enable FastF1 cache
-CACHE_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'cache')
-os.makedirs(CACHE_DIR, exist_ok=True)
-fastf1.Cache.enable_cache(CACHE_DIR)
+
+class RedisCache:
+    """Custom cache backend for FastF1 using Redis"""
+    
+    def __init__(self, redis_host=None, redis_port=None, redis_db=None):
+        """Initialize Redis cache"""
+        self.redis_client = redis.Redis(
+            host=redis_host or os.getenv('REDIS_HOST', 'localhost'),
+            port=int(redis_port or os.getenv('REDIS_PORT', 6379)),
+            db=int(redis_db or os.getenv('REDIS_DB', 0)),
+            decode_responses=False  # We need bytes for pickle
+        )
+    
+    def get(self, key):
+        """Get cached data from Redis"""
+        try:
+            data = self.redis_client.get(key)
+            if data:
+                return pickle.loads(data)
+            return None
+        except Exception as e:
+            print(f"Redis get error: {e}")
+            return None
+    
+    def set(self, key, value, ttl=None):
+        """Set cached data in Redis"""
+        try:
+            serialized = pickle.dumps(value)
+            if ttl:
+                self.redis_client.setex(key, ttl, serialized)
+            else:
+                self.redis_client.set(key, serialized)
+            return True
+        except Exception as e:
+            print(f"Redis set error: {e}")
+            return False
 
 
 class F1DataFetcher:
-    """Fetches and caches F1 data from FastF1 API"""
+    """Fetches and caches F1 data from FastF1 API using Redis"""
     
-    def __init__(self):
-        self.cache_dir = CACHE_DIR
+    def __init__(self, use_redis=True, redis_host=None, redis_port=None, redis_db=None):
+        """Initialize data fetcher with Redis caching
+        
+        Args:
+            use_redis: Enable Redis caching (default: True)
+            redis_host: Redis server host
+            redis_port: Redis server port
+            redis_db: Redis database number
+        """
+        self.use_redis = use_redis
+        if self.use_redis:
+            self.redis_cache = RedisCache(redis_host, redis_port, redis_db)
+            print(f"✓ Redis cache enabled")
+        else:
+            self.redis_cache = None
+            print("⚠ Redis cache disabled")
         
     def fetch_season_schedule(self, year):
         """Fetch the race schedule for a given season"""
         try:
+            cache_key = f"schedule:{year}"
+            
+            # Try to get from Redis cache
+            if self.use_redis:
+                cached_data = self.redis_cache.get(cache_key)
+                if cached_data is not None:
+                    print(f"✓ Loaded schedule for {year} from Redis cache")
+                    return cached_data
+            
+            # Fetch from API
             schedule = fastf1.get_event_schedule(year)
             print(f"Fetched schedule for {year} season: {len(schedule)} events")
+            
+            # Cache in Redis
+            if self.use_redis:
+                self.redis_cache.set(cache_key, schedule, ttl=86400)  # 24 hours
+            
             return schedule
         except Exception as e:
             print(f"Error fetching schedule for {year}: {e}")
@@ -37,9 +100,24 @@ class F1DataFetcher:
         session_type: 'FP1', 'FP2', 'FP3', 'Q', 'S' (Sprint), 'R' (Race)
         """
         try:
+            cache_key = f"session:{year}:{event}:{session_type}"
+            
+            # Try to get from Redis cache
+            if self.use_redis:
+                cached_data = self.redis_cache.get(cache_key)
+                if cached_data is not None:
+                    print(f"✓ Loaded {year} {event} {session_type} from Redis cache")
+                    return cached_data
+            
+            # Fetch from API
             session = fastf1.get_session(year, event, session_type)
             session.load()
             print(f"Loaded {year} {event} {session_type}")
+            
+            # Cache in Redis
+            if self.use_redis:
+                self.redis_cache.set(cache_key, session, ttl=86400)  # 24 hours
+            
             return session
         except Exception as e:
             print(f"Error fetching session {year} {event} {session_type}: {e}")
@@ -115,8 +193,8 @@ class F1DataFetcher:
             return None
     
     def cache_historical_data(self, start_year=2018, end_year=2024):
-        """Cache historical F1 data for multiple seasons"""
-        print(f"Caching data from {start_year} to {end_year}...")
+        """Cache historical F1 data for multiple seasons in Redis"""
+        print(f"Caching data from {start_year} to {end_year} in Redis...")
         
         for year in range(start_year, end_year + 1):
             print(f"\n=== Caching {year} season ===")
@@ -143,7 +221,7 @@ class F1DataFetcher:
                 except:
                     pass
         
-        print(f"\n✓ Caching complete! Data stored in {self.cache_dir}")
+        print(f"\n✓ Caching complete! Data stored in Redis")
 
 
 def main():

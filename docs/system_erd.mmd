@@ -1,0 +1,93 @@
+```mermaid
+erDiagram
+    TEAMS {
+        INT team_id PK "Unique constructor identifier"
+        TEXT team_name "Constructor name"
+        INT season_year "Season year"
+    }
+    DRIVERS {
+        INT driver_id PK "Unique driver identifier"
+        INT driver_number "Car number"
+        TEXT abbreviation "Driver code"
+        TEXT full_name "Driver full name"
+        INT team_id FK "Linked constructor"
+        INT season_year "Season year reference"
+    }
+    RACES {
+        INT race_id PK "Unique race identifier"
+        INT season_year "Season year"
+        INT round_number "Championship round"
+        TEXT event_name "Grand Prix name"
+        TEXT country "Host country"
+        TEXT location "Circuit location"
+        DATE event_date "Race date"
+    }
+    SESSIONS {
+        INT session_id PK "Unique session identifier"
+        INT race_id FK "Associated race"
+        TEXT session_type "FP/Q/Sprint/Race"
+        DATETIME session_date "Session start timestamp"
+        TEXT weather_conditions "Weather summary"
+        REAL track_temp "Track temperature"
+        REAL air_temp "Ambient temperature"
+    }
+    LAPS {
+        INT lap_id PK "Unique lap identifier"
+        INT session_id FK "Source session"
+        INT driver_id FK "Lap owner"
+        INT lap_number "Lap sequence"
+        REAL lap_time "Lap time seconds"
+        REAL sector1_time "Sector 1 time"
+        REAL sector2_time "Sector 2 time"
+        REAL sector3_time "Sector 3 time"
+        INT is_personal_best "Flag for best lap"
+    }
+    PITSTOPS {
+        INT pitstop_id PK "Unique pit event"
+        INT lap_id FK "Lap triggering stop"
+        INT driver_id FK "Driver making stop"
+        REAL pit_time "Total pit duration"
+        TEXT action "Action summary"
+    }
+    TIRECOMPOUNDS {
+        INT compound_id PK "Unique tyre usage"
+        INT lap_id FK "Lap using compound"
+        TEXT compound "Tyre compound code"
+        INT tyre_life "Laps on tyre"
+        REAL degradation_slope "Degradation rate"
+        INT stint_number "Stint sequence"
+    }
+    MLFEATURES {
+        INT feature_id PK "Feature snapshot"
+        INT driver_id FK "Driver reference"
+        INT race_id FK "Race context"
+        INT session_id FK "Session context"
+        JSON feature_payload "Engineered features"
+        DATETIME generated_at "Feature timestamp"
+    }
+    MLPREDICTIONS {
+        INT prediction_id PK "Prediction record"
+        INT race_id FK "Race context"
+        INT session_id FK "Session context"
+        INT driver_id FK "Driver predicted"
+        INT predicted_position "Finishing rank"
+        REAL predicted_time "Estimated finish time"
+        REAL confidence "Confidence score"
+        JSON shap_values "Explainability blob"
+    }
+
+    TEAMS ||--o{ DRIVERS : "fields drivers"
+    TEAMS ||--o{ RACES : "competes in season"
+    RACES ||--o{ SESSIONS : "comprises"
+    DRIVERS ||--o{ LAPS : "records"
+    SESSIONS ||--o{ LAPS : "includes"
+    LAPS ||--o{ PITSTOPS : "may trigger"
+    LAPS ||--o{ TIRECOMPOUNDS : "wears"
+    DRIVERS ||--o{ PITSTOPS : "performs"
+    RACES ||--o{ MLFEATURES : "provides context"
+    SESSIONS ||--o{ MLFEATURES : "derived from"
+    DRIVERS ||--o{ MLFEATURES : "features for"
+    RACES ||--o{ MLPREDICTIONS : "predicts"
+    SESSIONS ||--o{ MLPREDICTIONS : "session scope"
+    DRIVERS ||--o{ MLPREDICTIONS : "predicted for"
+```
