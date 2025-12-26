@@ -117,10 +117,10 @@ def show_drivers_teams():
             # Get drivers for selected year
             drivers_query = f"""
             SELECT 
-                driver_number as 'Car Number',
-                full_name as 'Driver Name',
-                abbreviation as 'Code',
-                team_name as 'Constructor/Team'
+                driver_number as "Car Number",
+                full_name as "Driver Name",
+                abbreviation as "Code",
+                team_name as "Constructor/Team"
             FROM drivers
             WHERE year = {selected_year}
             ORDER BY team_name, driver_number
