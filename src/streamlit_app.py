@@ -1,6 +1,7 @@
 """
 Streamlit Dashboard for F1 Prediction System
 Interactive UI to view data, predictions, and model explanations
+Race Engineering Console Theme
 """
 
 import streamlit as st
@@ -21,100 +22,754 @@ from ml_models import F1PredictionModel
 
 # Page configuration
 st.set_page_config(
-    page_title="F1 Prediction System",
-    page_icon="🏎️",
-    layout="wide"
+    page_title="F1 RACE CONTROL",
+    page_icon="🏁",
+    layout="wide",
+    initial_sidebar_state="collapsed"
 )
+
+# ============================================
+# CUSTOM CSS - RACE ENGINEERING THEME
+# ============================================
+def inject_custom_css():
+    st.markdown("""
+    <style>
+    @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+    
+    :root {
+        --bg-primary: #0a0a0b;
+        --bg-secondary: #111113;
+        --bg-panel: #161618;
+        --bg-card: #1a1a1d;
+        --accent-yellow: #f5c518;
+        --accent-yellow-dim: #c9a30e;
+        --accent-red: #e10600;
+        --text-primary: #e8e8e8;
+        --text-secondary: #8a8a8a;
+        --text-muted: #5a5a5a;
+        --border-color: #2a2a2d;
+        --success: #00d26a;
+        --carbon-pattern: repeating-linear-gradient(
+            45deg,
+            transparent,
+            transparent 2px,
+            rgba(255,255,255,0.02) 2px,
+            rgba(255,255,255,0.02) 4px
+        );
+    }
+    
+    .stApp {
+        background: var(--bg-primary);
+        background-image: var(--carbon-pattern);
+        font-family: 'JetBrains Mono', monospace;
+    }
+    
+    .stApp > header {
+        background: transparent;
+    }
+    
+    .stApp [data-testid="stSidebar"] {
+        background: var(--bg-secondary);
+        border-right: 1px solid var(--border-color);
+    }
+    
+    h1, h2, h3, h4, h5, h6, p, span, div, label {
+        font-family: 'JetBrains Mono', monospace !important;
+        color: var(--text-primary);
+    }
+    
+    .main-header {
+        background: linear-gradient(90deg, var(--bg-panel) 0%, var(--bg-secondary) 100%);
+        border-bottom: 2px solid var(--accent-yellow);
+        padding: 1.5rem 2rem;
+        margin: -1rem -1rem 2rem -1rem;
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        animation: slideDown 0.4s ease-out;
+    }
+    
+    @keyframes slideDown {
+        from { opacity: 0; transform: translateY(-20px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    
+    @keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+    }
+    
+    @keyframes slideUp {
+        from { opacity: 0; transform: translateY(20px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    
+    .main-header h1 {
+        color: var(--accent-yellow);
+        font-size: 1.8rem;
+        font-weight: 700;
+        margin: 0;
+        letter-spacing: 2px;
+        text-transform: uppercase;
+    }
+    
+    .header-badge {
+        background: var(--accent-red);
+        color: white;
+        padding: 0.3rem 0.8rem;
+        font-size: 0.7rem;
+        font-weight: 600;
+        letter-spacing: 1px;
+        border-radius: 2px;
+    }
+    
+    .nav-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1rem;
+        padding: 1rem 0;
+        animation: fadeIn 0.5s ease-out;
+    }
+    
+    .nav-tile {
+        background: var(--bg-card);
+        border: 1px solid var(--border-color);
+        border-radius: 4px;
+        padding: 1.2rem;
+        cursor: pointer;
+        transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .nav-tile::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 3px;
+        height: 100%;
+        background: var(--accent-yellow);
+        transform: scaleY(0);
+        transition: transform 0.25s ease;
+    }
+    
+    .nav-tile:hover {
+        background: var(--bg-panel);
+        border-color: var(--accent-yellow-dim);
+        transform: translateY(-2px);
+        box-shadow: 0 4px 20px rgba(245, 197, 24, 0.1);
+    }
+    
+    .nav-tile:hover::before {
+        transform: scaleY(1);
+    }
+    
+    .nav-tile.active {
+        border-color: var(--accent-yellow);
+        background: linear-gradient(135deg, var(--bg-panel) 0%, var(--bg-card) 100%);
+    }
+    
+    .nav-tile.active::before {
+        transform: scaleY(1);
+    }
+    
+    .nav-tile-icon {
+        font-size: 1.5rem;
+        margin-bottom: 0.5rem;
+        color: var(--accent-yellow);
+    }
+    
+    .nav-tile-title {
+        font-size: 0.9rem;
+        font-weight: 600;
+        color: var(--text-primary);
+        margin-bottom: 0.3rem;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+    }
+    
+    .nav-tile-subtitle {
+        font-size: 0.7rem;
+        color: var(--text-secondary);
+        line-height: 1.4;
+    }
+    
+    .panel {
+        background: var(--bg-card);
+        border: 1px solid var(--border-color);
+        border-radius: 4px;
+        padding: 1.5rem;
+        margin-bottom: 1rem;
+        animation: slideUp 0.4s ease-out;
+    }
+    
+    .panel-header {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        margin-bottom: 1rem;
+        padding-bottom: 0.75rem;
+        border-bottom: 1px solid var(--border-color);
+    }
+    
+    .panel-header h3 {
+        color: var(--accent-yellow);
+        font-size: 0.9rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        margin: 0;
+    }
+    
+    .status-indicator {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: var(--success);
+        animation: pulse 2s infinite;
+    }
+    
+    @keyframes pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.5; }
+    }
+    
+    .metric-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 1rem;
+    }
+    
+    .metric-card {
+        background: var(--bg-panel);
+        border: 1px solid var(--border-color);
+        border-radius: 4px;
+        padding: 1rem;
+        text-align: center;
+        transition: all 0.2s ease;
+    }
+    
+    .metric-card:hover {
+        border-color: var(--accent-yellow-dim);
+    }
+    
+    .metric-value {
+        font-size: 1.8rem;
+        font-weight: 700;
+        color: var(--accent-yellow);
+        margin-bottom: 0.25rem;
+    }
+    
+    .metric-label {
+        font-size: 0.7rem;
+        color: var(--text-secondary);
+        text-transform: uppercase;
+        letter-spacing: 1px;
+    }
+    
+    .metric-delta {
+        font-size: 0.65rem;
+        color: var(--success);
+        margin-top: 0.25rem;
+    }
+    
+    .divider {
+        height: 1px;
+        background: linear-gradient(90deg, transparent, var(--border-color), transparent);
+        margin: 1.5rem 0;
+    }
+    
+    .stButton > button {
+        background: var(--bg-card) !important;
+        border: 1px solid var(--border-color) !important;
+        color: var(--text-primary) !important;
+        font-family: 'JetBrains Mono', monospace !important;
+        font-weight: 500 !important;
+        text-transform: uppercase !important;
+        letter-spacing: 1px !important;
+        transition: all 0.2s ease !important;
+        border-radius: 4px !important;
+    }
+    
+    .stButton > button:hover {
+        border-color: var(--accent-yellow) !important;
+        background: var(--bg-panel) !important;
+        color: var(--accent-yellow) !important;
+    }
+    
+    .stSelectbox > div > div {
+        background: var(--bg-card) !important;
+        border-color: var(--border-color) !important;
+        color: var(--text-primary) !important;
+        font-family: 'JetBrains Mono', monospace !important;
+    }
+    
+    .stTextArea > div > div > textarea {
+        background: var(--bg-card) !important;
+        border-color: var(--border-color) !important;
+        color: var(--text-primary) !important;
+        font-family: 'JetBrains Mono', monospace !important;
+    }
+    
+    .stDataFrame {
+        background: var(--bg-card) !important;
+        border: 1px solid var(--border-color) !important;
+        border-radius: 4px !important;
+    }
+    
+    [data-testid="stMetricValue"] {
+        color: var(--accent-yellow) !important;
+        font-family: 'JetBrains Mono', monospace !important;
+        font-weight: 700 !important;
+    }
+    
+    [data-testid="stMetricLabel"] {
+        color: var(--text-secondary) !important;
+        font-family: 'JetBrains Mono', monospace !important;
+        text-transform: uppercase !important;
+        letter-spacing: 1px !important;
+    }
+    
+    [data-testid="stMetricDelta"] {
+        font-family: 'JetBrains Mono', monospace !important;
+    }
+    
+    .stTabs [data-baseweb="tab-list"] {
+        background: var(--bg-panel) !important;
+        border-radius: 4px !important;
+        padding: 0.25rem !important;
+        gap: 0.25rem !important;
+    }
+    
+    .stTabs [data-baseweb="tab"] {
+        background: transparent !important;
+        color: var(--text-secondary) !important;
+        font-family: 'JetBrains Mono', monospace !important;
+        text-transform: uppercase !important;
+        letter-spacing: 1px !important;
+        font-size: 0.75rem !important;
+        border-radius: 2px !important;
+    }
+    
+    .stTabs [aria-selected="true"] {
+        background: var(--bg-card) !important;
+        color: var(--accent-yellow) !important;
+    }
+    
+    .stExpander {
+        background: var(--bg-card) !important;
+        border: 1px solid var(--border-color) !important;
+        border-radius: 4px !important;
+    }
+    
+    .stExpander > div > div > div > div {
+        color: var(--text-primary) !important;
+    }
+    
+    .stDownloadButton > button {
+        background: transparent !important;
+        border: 1px solid var(--accent-yellow) !important;
+        color: var(--accent-yellow) !important;
+    }
+    
+    .stDownloadButton > button:hover {
+        background: var(--accent-yellow) !important;
+        color: var(--bg-primary) !important;
+    }
+    
+    .feature-item {
+        display: flex;
+        align-items: flex-start;
+        gap: 1rem;
+        padding: 0.75rem;
+        background: var(--bg-panel);
+        border-radius: 4px;
+        margin-bottom: 0.5rem;
+        transition: all 0.2s ease;
+    }
+    
+    .feature-item:hover {
+        background: var(--bg-card);
+    }
+    
+    .feature-icon {
+        color: var(--accent-yellow);
+        font-size: 1rem;
+        min-width: 24px;
+    }
+    
+    .feature-content h4 {
+        font-size: 0.85rem;
+        color: var(--text-primary);
+        margin: 0 0 0.25rem 0;
+    }
+    
+    .feature-content p {
+        font-size: 0.75rem;
+        color: var(--text-secondary);
+        margin: 0;
+        line-height: 1.4;
+    }
+    
+    .code-block {
+        background: var(--bg-secondary);
+        border: 1px solid var(--border-color);
+        border-radius: 4px;
+        padding: 1rem;
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 0.8rem;
+        color: var(--text-primary);
+        overflow-x: auto;
+    }
+    
+    .code-block code {
+        color: var(--accent-yellow);
+    }
+    
+    .info-banner {
+        background: linear-gradient(90deg, rgba(245, 197, 24, 0.1), transparent);
+        border-left: 3px solid var(--accent-yellow);
+        padding: 1rem;
+        margin: 1rem 0;
+        border-radius: 0 4px 4px 0;
+    }
+    
+    .info-banner p {
+        margin: 0;
+        font-size: 0.8rem;
+        color: var(--text-secondary);
+    }
+    
+    .back-button {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        background: transparent;
+        border: 1px solid var(--border-color);
+        color: var(--text-secondary);
+        padding: 0.5rem 1rem;
+        border-radius: 4px;
+        cursor: pointer;
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        transition: all 0.2s ease;
+        margin-bottom: 1.5rem;
+    }
+    
+    .back-button:hover {
+        border-color: var(--accent-yellow);
+        color: var(--accent-yellow);
+    }
+    
+    .section-title {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        margin-bottom: 1.5rem;
+    }
+    
+    .section-title h2 {
+        color: var(--text-primary);
+        font-size: 1.1rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 2px;
+        margin: 0;
+    }
+    
+    .section-title .line {
+        flex: 1;
+        height: 1px;
+        background: linear-gradient(90deg, var(--border-color), transparent);
+    }
+    
+    .team-card {
+        background: var(--bg-panel);
+        border: 1px solid var(--border-color);
+        border-radius: 4px;
+        padding: 1rem;
+        margin-bottom: 0.5rem;
+    }
+    
+    .team-card h4 {
+        color: var(--accent-yellow);
+        font-size: 0.85rem;
+        margin: 0 0 0.5rem 0;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+    }
+    
+    .driver-tag {
+        display: inline-block;
+        background: var(--bg-card);
+        border: 1px solid var(--border-color);
+        padding: 0.25rem 0.5rem;
+        border-radius: 2px;
+        font-size: 0.7rem;
+        color: var(--text-secondary);
+        margin: 0.2rem;
+    }
+    
+    .race-header {
+        background: linear-gradient(90deg, var(--bg-panel), var(--bg-card));
+        border: 1px solid var(--border-color);
+        border-radius: 4px;
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+    }
+    
+    .race-header h2 {
+        color: var(--accent-yellow);
+        font-size: 1.2rem;
+        margin: 0 0 0.5rem 0;
+    }
+    
+    .race-header .meta {
+        font-size: 0.75rem;
+        color: var(--text-secondary);
+    }
+    
+    .position-badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 28px;
+        height: 28px;
+        border-radius: 4px;
+        font-weight: 700;
+        font-size: 0.8rem;
+    }
+    
+    .position-badge.p1 { background: #ffd700; color: #000; }
+    .position-badge.p2 { background: #c0c0c0; color: #000; }
+    .position-badge.p3 { background: #cd7f32; color: #000; }
+    .position-badge.other { background: var(--bg-panel); color: var(--text-secondary); border: 1px solid var(--border-color); }
+    
+    </style>
+    """, unsafe_allow_html=True)
+
+
+# ============================================
+# NAVIGATION SYSTEM
+# ============================================
+PAGES = {
+    "home": {
+        "title": "CONTROL CENTER",
+        "subtitle": "System overview and status",
+        "icon": "◉"
+    },
+    "drivers": {
+        "title": "DRIVERS & TEAMS",
+        "subtitle": "Season roster and team data",
+        "icon": "◈"
+    },
+    "predictions_2026": {
+        "title": "2026 PREDICTIONS",
+        "subtitle": "Race-by-race forecasts",
+        "icon": "◎"
+    },
+    "database": {
+        "title": "DATA EXPLORER",
+        "subtitle": "Query and browse tables",
+        "icon": "◇"
+    },
+    "telemetry": {
+        "title": "TELEMETRY",
+        "subtitle": "Session telemetry viewer",
+        "icon": "◆"
+    },
+    "model_predictions": {
+        "title": "MODEL OUTPUT",
+        "subtitle": "Prediction results",
+        "icon": "◐"
+    },
+    "features": {
+        "title": "FEATURE ANALYSIS",
+        "subtitle": "Model explainability",
+        "icon": "◑"
+    }
+}
+
+
+def render_header():
+    st.markdown("""
+    <div class="main-header">
+        <h1>F1 RACE CONTROL</h1>
+        <span class="header-badge">PREDICTION SYSTEM</span>
+        <div style="flex:1;"></div>
+        <div class="status-indicator"></div>
+        <span style="font-size:0.7rem; color:#8a8a8a; text-transform:uppercase; letter-spacing:1px;">SYSTEM ACTIVE</span>
+    </div>
+    """, unsafe_allow_html=True)
+
+
+def render_navigation():
+    if 'current_page' not in st.session_state:
+        st.session_state.current_page = 'home'
+    
+    cols = st.columns(4)
+    page_keys = list(PAGES.keys())
+    
+    for idx, (page_id, page_info) in enumerate(PAGES.items()):
+        col_idx = idx % 4
+        with cols[col_idx]:
+            is_active = st.session_state.current_page == page_id
+            active_class = "active" if is_active else ""
+            
+            if st.button(
+                f"{page_info['icon']} {page_info['title']}",
+                key=f"nav_{page_id}",
+                use_container_width=True,
+                type="secondary" if not is_active else "primary"
+            ):
+                st.session_state.current_page = page_id
+                st.rerun()
+    
+    st.markdown('<div class="divider"></div>', unsafe_allow_html=True)
+
+
+def render_back_button():
+    if st.button("← BACK TO CONTROL CENTER", key="back_btn"):
+        st.session_state.current_page = 'home'
+        st.rerun()
+    st.markdown("")
 
 
 def main():
     """Main Streamlit application"""
+    inject_custom_css()
+    render_header()
+    render_navigation()
     
-    st.title("🏎️ Formula 1 Prediction System")
-    st.markdown("---")
+    page = st.session_state.get('current_page', 'home')
     
-    # Sidebar navigation
-    st.sidebar.title("Navigation")
-    page = st.sidebar.radio(
-        "Select Page",
-        ["Home", "Drivers & Teams", "2026 Predictions", "Database Explorer", "Telemetry Viewer", "Model Predictions", "Feature Importance"]
-    )
-    
-    if page == "Home":
+    if page == "home":
         show_home()
-    elif page == "Drivers & Teams":
+    elif page == "drivers":
         show_drivers_teams()
-    elif page == "2026 Predictions":
+    elif page == "predictions_2026":
         show_2026_predictions()
-    elif page == "Database Explorer":
+    elif page == "database":
         show_database_explorer()
-    elif page == "Telemetry Viewer":
+    elif page == "telemetry":
         show_telemetry_viewer()
-    elif page == "Model Predictions":
+    elif page == "model_predictions":
         show_predictions()
-    elif page == "Feature Importance":
+    elif page == "features":
         show_feature_importance()
 
 
 def show_home():
     """Home page with system overview"""
-    st.header("Welcome to F1 Prediction System")
     
-    col1, col2, col3 = st.columns(3)
-    
-    with col1:
-        st.metric("Models", "5+", "GB, RF, XGB")
-    with col2:
-        st.metric("2026 Predictions", "24 Races", "Full Season")
-    with col3:
-        st.metric("Status", "Offline Ready", "✓")
-    
-    st.markdown("---")
-    
-    st.subheader("System Features")
-    
-    features = {
-        "🔄 Data Collection": "FastF1 API with Redis caching (2023-2025)",
-        "💾 Storage": "PostgreSQL for structured data, JSON for telemetry",
-        "🤖 Machine Learning": "Multiple ensemble models with feature importance",
-        "📊 2026 Predictions": "Race-by-race predictions for entire 2026 season",
-        "🏁 Championship Projections": "Projected driver standings based on predictions",
-        "📈 Explainability": "Feature importance and confidence scores",
-        "🌐 Offline Mode": "Works without internet after Redis caching"
-    }
-    
-    for feature, description in features.items():
-        st.markdown(f"**{feature}**: {description}")
-    
-    st.markdown("---")
-    
-    st.subheader("Quick Start")
-    
+    # Status metrics
     st.markdown("""
-    1. **Data Collection**: Run `python src/populate_database.py` to populate database (2023 data)
-    2. **Generate 2026 Predictions**: Run `notebooks/f1_2026_predictions.ipynb`
-    3. **View Dashboard**: Launch this Streamlit app
-    4. **Explore**: Navigate to "2026 Predictions" to see race-by-race forecasts
-    """)
+    <div class="section-title">
+        <h2>SYSTEM STATUS</h2>
+        <div class="line"></div>
+    </div>
+    """, unsafe_allow_html=True)
     
-    st.info("💡 Navigate using the sidebar to explore different features")
+    col1, col2, col3, col4 = st.columns(4)
+    with col1:
+        st.metric("MODELS", "5+", "GB, RF, XGB")
+    with col2:
+        st.metric("PREDICTIONS", "24", "2026 RACES")
+    with col3:
+        st.metric("DATA YEARS", "3", "2023-2025")
+    with col4:
+        st.metric("STATUS", "READY", "OFFLINE OK")
+    
+    st.markdown('<div class="divider"></div>', unsafe_allow_html=True)
+    
+    # System Features Panel
+    col_left, col_right = st.columns([1.5, 1])
+    
+    with col_left:
+        st.markdown("""
+        <div class="panel">
+            <div class="panel-header">
+                <div class="status-indicator"></div>
+                <h3>SYSTEM CAPABILITIES</h3>
+            </div>
+        """, unsafe_allow_html=True)
+        
+        features = [
+            ("◉", "DATA PIPELINE", "FastF1 API integration with Redis caching for 2023-2025 seasons"),
+            ("◇", "STORAGE ENGINE", "PostgreSQL database with JSON telemetry storage"),
+            ("◐", "ML MODELS", "Ensemble models: Gradient Boosting, Random Forest, XGBoost"),
+            ("◎", "PREDICTIONS", "Race-by-race predictions for complete 2026 season"),
+            ("◈", "STANDINGS", "Projected championship standings with confidence scores"),
+            ("◑", "EXPLAINABILITY", "Feature importance and SHAP-based analysis"),
+            ("◆", "OFFLINE MODE", "Full functionality without internet after caching")
+        ]
+        
+        for icon, title, desc in features:
+            st.markdown(f"""
+            <div class="feature-item">
+                <span class="feature-icon">{icon}</span>
+                <div class="feature-content">
+                    <h4>{title}</h4>
+                    <p>{desc}</p>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        st.markdown("</div>", unsafe_allow_html=True)
+    
+    with col_right:
+        st.markdown("""
+        <div class="panel">
+            <div class="panel-header">
+                <h3>QUICK START</h3>
+            </div>
+        """, unsafe_allow_html=True)
+        
+        st.markdown("""
+        <div class="code-block">
+        <span style="color:#5a5a5a;"># 1. Populate database</span><br>
+        <code>python src/populate_database.py</code><br><br>
+        <span style="color:#5a5a5a;"># 2. Generate predictions</span><br>
+        <code>jupyter notebook f1_2026_predictions.ipynb</code><br><br>
+        <span style="color:#5a5a5a;"># 3. Launch dashboard</span><br>
+        <code>streamlit run src/streamlit_app.py</code>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        st.markdown("""
+        <div class="info-banner">
+            <p>Navigate using the tiles above to access prediction data, telemetry, and model analysis.</p>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        st.markdown("</div>", unsafe_allow_html=True)
 
 
 def show_drivers_teams():
     """Drivers and Teams page with comprehensive driver info"""
-    st.header("🏎️ Drivers & Teams")
+    render_back_button()
+    
+    st.markdown("""
+    <div class="section-title">
+        <h2>◈ DRIVERS & TEAMS</h2>
+        <div class="line"></div>
+    </div>
+    """, unsafe_allow_html=True)
     
     try:
         db = F1Database()
         
-        # Year selector
         years_query = "SELECT DISTINCT year FROM drivers ORDER BY year DESC"
         years_df = db.execute_query(years_query)
         
         if len(years_df) > 0:
-            selected_year = st.selectbox("Select Season", years_df['year'].tolist(), index=0)
+            col_filter, col_spacer = st.columns([1, 3])
+            with col_filter:
+                selected_year = st.selectbox("SEASON", years_df['year'].tolist(), index=0)
             
-            # Get drivers for selected year
             drivers_query = f"""
             SELECT 
                 driver_number as "Car Number",
@@ -128,65 +783,87 @@ def show_drivers_teams():
             drivers_df = db.execute_query(drivers_query)
             
             if len(drivers_df) > 0:
-                st.subheader(f"{selected_year} Season - Drivers & Teams")
-                
-                # Display as formatted table
-                st.dataframe(
-                    drivers_df,
-                    use_container_width=True,
-                    hide_index=True
-                )
-                
-                # Statistics
-                col1, col2, col3 = st.columns(3)
+                st.markdown('<div class="panel">', unsafe_allow_html=True)
+                col1, col2, col3, col4 = st.columns(4)
                 with col1:
-                    st.metric("Total Drivers", len(drivers_df))
+                    st.metric("DRIVERS", len(drivers_df))
                 with col2:
                     num_teams = drivers_df['Constructor/Team'].nunique()
-                    st.metric("Teams", num_teams)
+                    st.metric("TEAMS", num_teams)
                 with col3:
-                    st.metric("Season", selected_year)
+                    st.metric("SEASON", selected_year)
+                with col4:
+                    avg_per_team = len(drivers_df) / num_teams if num_teams > 0 else 0
+                    st.metric("AVG/TEAM", f"{avg_per_team:.1f}")
+                st.markdown('</div>', unsafe_allow_html=True)
                 
-                st.markdown("---")
+                st.markdown('<div class="divider"></div>', unsafe_allow_html=True)
                 
-                # Group by team
-                st.subheader("Drivers by Team")
-                for team in sorted(drivers_df['Constructor/Team'].unique()):
-                    team_drivers = drivers_df[drivers_df['Constructor/Team'] == team]
+                tab_grid, tab_teams = st.tabs(["GRID VIEW", "BY CONSTRUCTOR"])
+                
+                with tab_grid:
+                    st.markdown('<div class="panel">', unsafe_allow_html=True)
+                    st.dataframe(drivers_df, use_container_width=True, hide_index=True)
+                    st.markdown('</div>', unsafe_allow_html=True)
+                
+                with tab_teams:
+                    cols = st.columns(2)
+                    teams = sorted(drivers_df['Constructor/Team'].unique())
                     
-                    with st.expander(f"🏁 {team} ({len(team_drivers)} drivers)"):
-                        for _, driver in team_drivers.iterrows():
-                            st.markdown(f"""
-                            **#{driver['Car Number']} - {driver['Driver Name']}** ({driver['Code']})
-                            """)
+                    for idx, team in enumerate(teams):
+                        team_drivers = drivers_df[drivers_df['Constructor/Team'] == team]
+                        col_idx = idx % 2
+                        
+                        with cols[col_idx]:
+                            with st.expander(f"◆ {team.upper()} ({len(team_drivers)})", expanded=False):
+                                for _, driver in team_drivers.iterrows():
+                                    st.markdown(f"**#{driver['Car Number']}** {driver['Driver Name']} `{driver['Code']}`")
                 
-                # Download option
-                st.markdown("---")
+                st.markdown('<div class="divider"></div>', unsafe_allow_html=True)
+                
                 csv = drivers_df.to_csv(index=False)
                 st.download_button(
-                    label=f"Download {selected_year} Driver List (CSV)",
+                    label=f"EXPORT {selected_year} ROSTER",
                     data=csv,
                     file_name=f"f1_drivers_{selected_year}.csv",
                     mime="text/csv"
                 )
             else:
-                st.info(f"No driver data available for {selected_year}. Run data fetcher to populate the database.")
+                st.markdown("""
+                <div class="info-banner">
+                    <p>No driver data for selected season. Execute data pipeline.</p>
+                </div>
+                """, unsafe_allow_html=True)
         else:
-            st.info("No driver data available. Run `python src/data_fetcher.py` and `python src/database.py` to populate the database.")
+            st.markdown("""
+            <div class="info-banner">
+                <p>Database empty. Run: python src/data_fetcher.py</p>
+            </div>
+            """, unsafe_allow_html=True)
     
     except Exception as e:
-        st.error(f"Error: {e}")
-        st.info("Make sure to run `python src/database.py` to initialize the database first.")
+        st.error(f"DATABASE ERROR: {e}")
+        st.markdown("""
+        <div class="info-banner">
+            <p>Initialize database: python src/database.py</p>
+        </div>
+        """, unsafe_allow_html=True)
 
 
 def show_2026_predictions():
     """2026 Season Predictions page with race-by-race breakdown"""
-    st.header("🏁 2026 Season Predictions")
+    render_back_button()
+    
+    st.markdown("""
+    <div class="section-title">
+        <h2>◎ 2026 SEASON PREDICTIONS</h2>
+        <div class="line"></div>
+    </div>
+    """, unsafe_allow_html=True)
     
     try:
         db = F1Database()
         
-        # Get 2026 predictions
         predictions_query = """
         SELECT 
             p.race_id,
@@ -209,237 +886,315 @@ def show_2026_predictions():
         predictions_df = db.execute_query(predictions_query)
         
         if len(predictions_df) > 0:
-            # Overview stats
+            st.markdown('<div class="panel">', unsafe_allow_html=True)
             col1, col2, col3, col4 = st.columns(4)
             with col1:
-                st.metric("Total Predictions", len(predictions_df))
+                st.metric("PREDICTIONS", len(predictions_df))
             with col2:
                 num_races = predictions_df['race_id'].nunique()
-                st.metric("Races", num_races)
+                st.metric("RACES", num_races)
             with col3:
                 num_drivers = predictions_df['driver_number'].nunique()
-                st.metric("Drivers", num_drivers)
+                st.metric("DRIVERS", num_drivers)
             with col4:
                 avg_confidence = predictions_df['confidence'].mean()
-                st.metric("Avg Confidence", f"{avg_confidence:.2f}")
+                st.metric("AVG CONF", f"{avg_confidence:.2f}")
+            st.markdown('</div>', unsafe_allow_html=True)
             
-            st.markdown("---")
+            st.markdown('<div class="divider"></div>', unsafe_allow_html=True)
             
-            # Race selector
-            st.subheader("Select Race")
-            race_options = predictions_df[['round_number', 'event_name', 'event_date']].drop_duplicates()
-            race_options = race_options.sort_values('round_number')
+            tab_race, tab_championship = st.tabs(["RACE ANALYSIS", "CHAMPIONSHIP PROJECTION"])
             
-            selected_race = st.selectbox(
-                "Choose a race",
-                options=race_options['event_name'].tolist(),
-                format_func=lambda x: f"Round {race_options[race_options['event_name']==x]['round_number'].values[0]} - {x}"
-            )
-            
-            # Filter for selected race
-            race_predictions = predictions_df[predictions_df['event_name'] == selected_race].copy()
-            race_predictions = race_predictions.sort_values('predicted_position')
-            
-            if len(race_predictions) > 0:
-                # Race header
-                race_round = race_predictions['round_number'].iloc[0]
-                race_date = race_predictions['event_date'].iloc[0]
+            with tab_race:
+                race_options = predictions_df[['round_number', 'event_name', 'event_date']].drop_duplicates()
+                race_options = race_options.sort_values('round_number')
                 
-                st.markdown(f"### Round {race_round}: {selected_race}")
-                st.markdown(f"**Date:** {race_date}")
+                col_select, col_spacer = st.columns([2, 2])
+                with col_select:
+                    selected_race = st.selectbox(
+                        "SELECT GRAND PRIX",
+                        options=race_options['event_name'].tolist(),
+                        format_func=lambda x: f"R{race_options[race_options['event_name']==x]['round_number'].values[0]:02d} | {x.upper()}"
+                    )
                 
-                # Top 10 predictions
-                st.subheader("🏆 Predicted Top 10")
-                top10 = race_predictions.head(10).copy()
-                top10['Position'] = range(1, len(top10) + 1)
+                race_predictions = predictions_df[predictions_df['event_name'] == selected_race].copy()
+                race_predictions = race_predictions.sort_values('predicted_position')
                 
-                display_cols = ['Position', 'driver_name', 'team_name', 'confidence']
-                display_df = top10[display_cols].copy()
-                display_df.columns = ['Pos', 'Driver', 'Team', 'Confidence']
-                display_df['Confidence'] = display_df['Confidence'].apply(lambda x: f"{x:.3f}")
-                
-                st.dataframe(display_df, use_container_width=True, hide_index=True)
-                
-                # Full grid
-                st.markdown("---")
-                with st.expander("📊 View Full Predicted Grid"):
-                    full_grid = race_predictions.copy()
-                    full_grid['Position'] = range(1, len(full_grid) + 1)
-                    full_grid_display = full_grid[['Position', 'driver_name', 'team_name', 'driver_number', 'confidence']]
-                    full_grid_display.columns = ['Pos', 'Driver', 'Team', 'Car #', 'Confidence']
-                    full_grid_display['Confidence'] = full_grid_display['Confidence'].apply(lambda x: f"{x:.3f}")
-                    st.dataframe(full_grid_display, use_container_width=True, hide_index=True)
-                
-                # Visualization
-                st.markdown("---")
-                st.subheader("📈 Prediction Visualization")
-                
-                # Bar chart of top 10
-                fig = px.bar(
-                    top10,
-                    x='driver_name',
-                    y='confidence',
-                    color='team_name',
-                    title=f"Top 10 Prediction Confidence - {selected_race}",
-                    labels={'driver_name': 'Driver', 'confidence': 'Confidence Score', 'team_name': 'Team'}
-                )
-                fig.update_layout(xaxis_tickangle=-45)
-                st.plotly_chart(fig, use_container_width=True)
-                
-                # Feature importance (if available)
-                if 'features_json' in race_predictions.columns:
-                    with st.expander("🔍 Feature Analysis"):
-                        try:
-                            # Parse first driver's features as example
-                            sample_features = json.loads(race_predictions.iloc[0]['features_json'])
-                            
-                            st.markdown("**Sample Feature Values (First Predicted Driver):**")
-                            features_df = pd.DataFrame([sample_features]).T
-                            features_df.columns = ['Value']
-                            features_df['Feature'] = features_df.index
-                            features_df = features_df[['Feature', 'Value']]
-                            st.dataframe(features_df, use_container_width=True, hide_index=True)
-                        except:
-                            st.info("Feature data not available")
+                if len(race_predictions) > 0:
+                    race_round = race_predictions['round_number'].iloc[0]
+                    race_date = race_predictions['event_date'].iloc[0]
+                    
+                    st.markdown(f"""
+                    <div class="race-header">
+                        <h2>ROUND {race_round:02d} | {selected_race.upper()}</h2>
+                        <span class="meta">DATE: {race_date}</span>
+                    </div>
+                    """, unsafe_allow_html=True)
+                    
+                    col_podium, col_chart = st.columns([1, 1.5])
+                    
+                    with col_podium:
+                        st.markdown("""
+                        <div class="panel">
+                            <div class="panel-header">
+                                <h3>PREDICTED PODIUM</h3>
+                            </div>
+                        """, unsafe_allow_html=True)
+                        
+                        top3 = race_predictions.head(3)
+                        for idx, (_, driver) in enumerate(top3.iterrows()):
+                            pos = idx + 1
+                            badge_class = f"p{pos}" if pos <= 3 else "other"
+                            st.markdown(f"""
+                            <div class="feature-item">
+                                <span class="position-badge {badge_class}">P{pos}</span>
+                                <div class="feature-content">
+                                    <h4>{driver['driver_name'] or 'Unknown'}</h4>
+                                    <p>{driver['team_name'] or 'Unknown'} | Conf: {driver['confidence']:.3f}</p>
+                                </div>
+                            </div>
+                            """, unsafe_allow_html=True)
+                        
+                        st.markdown("</div>", unsafe_allow_html=True)
+                    
+                    with col_chart:
+                        top10 = race_predictions.head(10).copy()
+                        top10['Position'] = range(1, len(top10) + 1)
+                        
+                        fig = go.Figure()
+                        fig.add_trace(go.Bar(
+                            x=top10['driver_name'],
+                            y=top10['confidence'],
+                            marker_color='#f5c518',
+                            marker_line_color='#c9a30e',
+                            marker_line_width=1,
+                            hovertemplate='<b>%{x}</b><br>Confidence: %{y:.3f}<extra></extra>'
+                        ))
+                        fig.update_layout(
+                            title=dict(text='TOP 10 CONFIDENCE SCORES', font=dict(color='#e8e8e8', size=14)),
+                            paper_bgcolor='rgba(0,0,0,0)',
+                            plot_bgcolor='rgba(22,22,24,1)',
+                            font=dict(family='JetBrains Mono, monospace', color='#8a8a8a'),
+                            xaxis=dict(tickangle=-45, gridcolor='#2a2a2d'),
+                            yaxis=dict(gridcolor='#2a2a2d'),
+                            margin=dict(t=40, b=80)
+                        )
+                        st.plotly_chart(fig, use_container_width=True)
+                    
+                    with st.expander("VIEW FULL PREDICTED GRID"):
+                        full_grid = race_predictions.copy()
+                        full_grid['Position'] = range(1, len(full_grid) + 1)
+                        full_grid_display = full_grid[['Position', 'driver_name', 'team_name', 'driver_number', 'confidence']]
+                        full_grid_display.columns = ['POS', 'DRIVER', 'TEAM', 'CAR#', 'CONF']
+                        full_grid_display['CONF'] = full_grid_display['CONF'].apply(lambda x: f"{x:.3f}")
+                        st.dataframe(full_grid_display, use_container_width=True, hide_index=True)
+                    
+                    if 'features_json' in race_predictions.columns:
+                        with st.expander("FEATURE ANALYSIS"):
+                            try:
+                                sample_features = json.loads(race_predictions.iloc[0]['features_json'])
+                                features_df = pd.DataFrame([sample_features]).T
+                                features_df.columns = ['Value']
+                                features_df['Feature'] = features_df.index
+                                features_df = features_df[['Feature', 'Value']]
+                                st.dataframe(features_df, use_container_width=True, hide_index=True)
+                            except:
+                                st.markdown('<div class="info-banner"><p>Feature data unavailable</p></div>', unsafe_allow_html=True)
             
-            # Championship standings projection
-            st.markdown("---")
-            st.subheader("🏆 Projected Championship Standings")
-            
-            # Points system
-            points_system = {1: 25, 2: 18, 3: 15, 4: 12, 5: 10, 6: 8, 7: 6, 8: 4, 9: 2, 10: 1}
-            
-            # Calculate points for each driver
-            driver_points = {}
-            for _, pred in predictions_df.iterrows():
-                driver = pred['driver_name']
-                position = pred['predicted_position']
-                points = points_system.get(position, 0)
+            with tab_championship:
+                st.markdown("""
+                <div class="panel">
+                    <div class="panel-header">
+                        <h3>PROJECTED DRIVER STANDINGS</h3>
+                    </div>
+                """, unsafe_allow_html=True)
                 
-                if driver not in driver_points:
-                    driver_points[driver] = {'points': 0, 'team': pred['team_name']}
-                driver_points[driver]['points'] += points
-            
-            # Create standings dataframe
-            standings = pd.DataFrame([
-                {'Driver': k, 'Team': v['team'], 'Points': v['points']}
-                for k, v in driver_points.items()
-            ]).sort_values('Points', ascending=False)
-            
-            standings['Position'] = range(1, len(standings) + 1)
-            standings = standings[['Position', 'Driver', 'Team', 'Points']]
-            
-            st.dataframe(standings.head(10), use_container_width=True, hide_index=True)
+                points_system = {1: 25, 2: 18, 3: 15, 4: 12, 5: 10, 6: 8, 7: 6, 8: 4, 9: 2, 10: 1}
+                
+                driver_points = {}
+                for _, pred in predictions_df.iterrows():
+                    driver = pred['driver_name']
+                    position = pred['predicted_position']
+                    points = points_system.get(position, 0)
+                    
+                    if driver not in driver_points:
+                        driver_points[driver] = {'points': 0, 'team': pred['team_name']}
+                    driver_points[driver]['points'] += points
+                
+                standings = pd.DataFrame([
+                    {'Driver': k, 'Team': v['team'], 'Points': v['points']}
+                    for k, v in driver_points.items()
+                ]).sort_values('Points', ascending=False)
+                
+                standings['Position'] = range(1, len(standings) + 1)
+                standings = standings[['Position', 'Driver', 'Team', 'Points']]
+                standings.columns = ['POS', 'DRIVER', 'TEAM', 'PTS']
+                
+                col_table, col_viz = st.columns([1, 1.5])
+                
+                with col_table:
+                    st.dataframe(standings.head(10), use_container_width=True, hide_index=True)
+                
+                with col_viz:
+                    top10_standings = standings.head(10)
+                    fig = go.Figure()
+                    fig.add_trace(go.Bar(
+                        y=top10_standings['DRIVER'],
+                        x=top10_standings['PTS'],
+                        orientation='h',
+                        marker_color='#f5c518',
+                        marker_line_color='#c9a30e',
+                        marker_line_width=1
+                    ))
+                    fig.update_layout(
+                        title=dict(text='CHAMPIONSHIP POINTS', font=dict(color='#e8e8e8', size=14)),
+                        paper_bgcolor='rgba(0,0,0,0)',
+                        plot_bgcolor='rgba(22,22,24,1)',
+                        font=dict(family='JetBrains Mono, monospace', color='#8a8a8a'),
+                        xaxis=dict(gridcolor='#2a2a2d'),
+                        yaxis=dict(gridcolor='#2a2a2d', autorange='reversed'),
+                        margin=dict(l=120, t=40)
+                    )
+                    st.plotly_chart(fig, use_container_width=True)
+                
+                st.markdown("</div>", unsafe_allow_html=True)
             
         else:
-            st.info("No 2026 predictions available. Run the '2026 Predictions' notebook to generate predictions.")
             st.markdown("""
-            **To generate 2026 predictions:**
-            1. Open `notebooks/f1_2026_predictions.ipynb`
-            2. Run all cells to train models and generate predictions
-            3. Refresh this page to view predictions
-            """)
+            <div class="info-banner">
+                <p>No 2026 predictions available. Run the predictions notebook first.</p>
+            </div>
+            <div class="code-block">
+            <span style="color:#5a5a5a;"># Generate predictions:</span><br>
+            <code>jupyter notebook notebooks/f1_2026_predictions.ipynb</code>
+            </div>
+            """, unsafe_allow_html=True)
     
     except Exception as e:
-        st.error(f"Error: {e}")
-        st.info("Make sure to run the 2026 predictions notebook first.")
+        st.error(f"ERROR: {e}")
+        st.markdown('<div class="info-banner"><p>Run 2026 predictions notebook first.</p></div>', unsafe_allow_html=True)
 
 
 def show_database_explorer():
     """Database explorer page"""
-    st.header("Database Explorer")
+    render_back_button()
+    
+    st.markdown("""
+    <div class="section-title">
+        <h2>◇ DATA EXPLORER</h2>
+        <div class="line"></div>
+    </div>
+    """, unsafe_allow_html=True)
     
     try:
         db = F1Database()
         
-        # Table selector
         tables = ["races", "drivers", "teams", "race_results", 
                   "qualifying_results", "sprint_results", "predictions"]
         
-        selected_table = st.selectbox("Select Table", tables)
+        tab_browse, tab_query = st.tabs(["TABLE BROWSER", "SQL CONSOLE"])
         
-        # Execute query
-        if selected_table:
-            st.subheader(f"Table: {selected_table}")
+        with tab_browse:
+            col_select, col_spacer = st.columns([1, 3])
+            with col_select:
+                selected_table = st.selectbox("SELECT TABLE", tables)
             
-            # Enhanced query for drivers to show all info
-            if selected_table == "drivers":
-                query = "SELECT driver_number, full_name, abbreviation, team_name, year FROM drivers ORDER BY year DESC, driver_number"
-            else:
-                query = f"SELECT * FROM {selected_table}"
-            df = db.execute_query(query)
+            if selected_table:
+                if selected_table == "drivers":
+                    query = "SELECT driver_number, full_name, abbreviation, team_name, year FROM drivers ORDER BY year DESC, driver_number"
+                else:
+                    query = f"SELECT * FROM {selected_table}"
+                df = db.execute_query(query)
+                
+                if len(df) > 0:
+                    st.markdown('<div class="panel">', unsafe_allow_html=True)
+                    col1, col2, col3 = st.columns(3)
+                    with col1:
+                        st.metric("ROWS", len(df))
+                    with col2:
+                        st.metric("COLUMNS", len(df.columns))
+                    with col3:
+                        st.metric("TABLE", selected_table.upper())
+                    st.markdown('</div>', unsafe_allow_html=True)
+                    
+                    st.dataframe(df, use_container_width=True, hide_index=True)
+                    
+                    csv = df.to_csv(index=False)
+                    st.download_button(
+                        label="EXPORT CSV",
+                        data=csv,
+                        file_name=f"{selected_table}.csv",
+                        mime="text/csv"
+                    )
+                else:
+                    st.markdown(f'<div class="info-banner"><p>No data in {selected_table} table</p></div>', unsafe_allow_html=True)
+        
+        with tab_query:
+            st.markdown("""
+            <div class="panel">
+                <div class="panel-header">
+                    <h3>SQL QUERY INTERFACE</h3>
+                </div>
+            """, unsafe_allow_html=True)
             
-            if len(df) > 0:
-                st.dataframe(df, use_container_width=True)
-                
-                # Show statistics
-                col1, col2 = st.columns(2)
-                with col1:
-                    st.metric("Total Rows", len(df))
-                with col2:
-                    st.metric("Columns", len(df.columns))
-                
-                # Download option
-                csv = df.to_csv(index=False)
-                st.download_button(
-                    label="Download as CSV",
-                    data=csv,
-                    file_name=f"{selected_table}.csv",
-                    mime="text/csv"
-                )
-            else:
-                st.info(f"No data in {selected_table} table yet")
-        
-        # Custom query section
-        st.markdown("---")
-        st.subheader("Custom SQL Query")
-        
-        custom_query = st.text_area(
-            "Enter SQL Query",
-            "SELECT * FROM races LIMIT 10"
-        )
-        
-        if st.button("Execute Query"):
-            try:
-                result_df = db.execute_query(custom_query)
-                st.dataframe(result_df, use_container_width=True)
-            except Exception as e:
-                st.error(f"Query error: {e}")
+            custom_query = st.text_area(
+                "ENTER SQL QUERY",
+                "SELECT * FROM races LIMIT 10",
+                height=100
+            )
+            
+            if st.button("EXECUTE", type="primary"):
+                try:
+                    result_df = db.execute_query(custom_query)
+                    st.markdown(f'<div class="info-banner"><p>Returned {len(result_df)} rows</p></div>', unsafe_allow_html=True)
+                    st.dataframe(result_df, use_container_width=True, hide_index=True)
+                except Exception as e:
+                    st.error(f"QUERY ERROR: {e}")
+            
+            st.markdown("</div>", unsafe_allow_html=True)
     
     except Exception as e:
-        st.error(f"Database error: {e}")
-        st.info("Run `python src/database.py` to initialize the database")
+        st.error(f"DATABASE ERROR: {e}")
+        st.markdown('<div class="info-banner"><p>Initialize: python src/database.py</p></div>', unsafe_allow_html=True)
 
 
 def show_telemetry_viewer():
     """Telemetry viewer page"""
-    st.header("Telemetry Viewer")
+    render_back_button()
+    
+    st.markdown("""
+    <div class="section-title">
+        <h2>◆ TELEMETRY VIEWER</h2>
+        <div class="line"></div>
+    </div>
+    """, unsafe_allow_html=True)
     
     try:
         handler = TelemetryHandler()
         
-        # Get telemetry summary
         summary = handler.get_telemetry_summary()
         
-        col1, col2 = st.columns(2)
+        st.markdown('<div class="panel">', unsafe_allow_html=True)
+        col1, col2, col3 = st.columns(3)
         with col1:
-            st.metric("Total Files", summary['total_files'])
+            st.metric("TOTAL FILES", summary['total_files'])
         with col2:
-            years = ", ".join(summary['by_year'].keys()) if summary['by_year'] else "None"
-            st.metric("Years", years)
+            years = ", ".join(summary['by_year'].keys()) if summary['by_year'] else "NONE"
+            st.metric("YEARS", years)
+        with col3:
+            st.metric("STATUS", "READY" if summary['total_files'] > 0 else "EMPTY")
+        st.markdown('</div>', unsafe_allow_html=True)
         
-        st.markdown("---")
+        st.markdown('<div class="divider"></div>', unsafe_allow_html=True)
         
-        # List all telemetry files
         files = handler.list_available_telemetry()
         
         if files:
-            st.subheader("Available Telemetry Files")
-            
-            selected_file = st.selectbox("Select File", files)
+            col_select, col_spacer = st.columns([2, 2])
+            with col_select:
+                selected_file = st.selectbox("SELECT TELEMETRY FILE", files)
             
             if selected_file:
-                # Parse file path
                 parts = selected_file.split(os.sep)
                 
                 if len(parts) >= 3:
@@ -447,54 +1202,87 @@ def show_telemetry_viewer():
                     event = parts[1]
                     session = parts[2]
                     
-                    # Load file
                     file_path = os.path.join(handler.telemetry_dir, selected_file)
                     
                     try:
                         with open(file_path, 'r') as f:
                             data = json.load(f)
                         
-                        # Show metadata
-                        st.subheader("Metadata")
-                        st.json(data.get('metadata', {}))
+                        tab_meta, tab_data, tab_viz = st.tabs(["METADATA", "RAW DATA", "VISUALIZATION"])
                         
-                        # Show data
-                        if 'telemetry' in data:
-                            st.subheader("Telemetry Data")
-                            telemetry_df = pd.DataFrame(data['telemetry'])
-                            st.dataframe(telemetry_df, use_container_width=True)
-                            
-                            # Plot if numeric columns exist
-                            numeric_cols = telemetry_df.select_dtypes(include=['float64', 'int64']).columns
-                            if len(numeric_cols) > 0:
-                                st.subheader("Visualization")
-                                plot_col = st.selectbox("Select column to plot", numeric_cols)
+                        with tab_meta:
+                            st.markdown("""
+                            <div class="panel">
+                                <div class="panel-header">
+                                    <h3>SESSION METADATA</h3>
+                                </div>
+                            """, unsafe_allow_html=True)
+                            st.json(data.get('metadata', {}))
+                            st.markdown("</div>", unsafe_allow_html=True)
+                        
+                        with tab_data:
+                            if 'telemetry' in data:
+                                telemetry_df = pd.DataFrame(data['telemetry'])
+                                st.dataframe(telemetry_df, use_container_width=True, hide_index=True)
+                            elif 'laps' in data:
+                                laps_df = pd.DataFrame(data['laps'])
+                                st.dataframe(laps_df, use_container_width=True, hide_index=True)
+                            else:
+                                st.markdown('<div class="info-banner"><p>No structured data available</p></div>', unsafe_allow_html=True)
+                        
+                        with tab_viz:
+                            if 'telemetry' in data:
+                                telemetry_df = pd.DataFrame(data['telemetry'])
+                                numeric_cols = telemetry_df.select_dtypes(include=['float64', 'int64']).columns
                                 
-                                fig = px.line(telemetry_df, y=plot_col, title=f"{plot_col} over time")
-                                st.plotly_chart(fig, use_container_width=True)
-                        
-                        elif 'laps' in data:
-                            st.subheader("Lap Data")
-                            laps_df = pd.DataFrame(data['laps'])
-                            st.dataframe(laps_df, use_container_width=True)
+                                if len(numeric_cols) > 0:
+                                    plot_col = st.selectbox("SELECT CHANNEL", numeric_cols)
+                                    
+                                    fig = go.Figure()
+                                    fig.add_trace(go.Scatter(
+                                        y=telemetry_df[plot_col],
+                                        mode='lines',
+                                        line=dict(color='#f5c518', width=1),
+                                        hovertemplate='%{y:.2f}<extra></extra>'
+                                    ))
+                                    fig.update_layout(
+                                        title=dict(text=f'{plot_col.upper()} TRACE', font=dict(color='#e8e8e8', size=14)),
+                                        paper_bgcolor='rgba(0,0,0,0)',
+                                        plot_bgcolor='rgba(22,22,24,1)',
+                                        font=dict(family='JetBrains Mono, monospace', color='#8a8a8a'),
+                                        xaxis=dict(gridcolor='#2a2a2d', title='Sample'),
+                                        yaxis=dict(gridcolor='#2a2a2d', title=plot_col),
+                                        margin=dict(t=40)
+                                    )
+                                    st.plotly_chart(fig, use_container_width=True)
+                                else:
+                                    st.markdown('<div class="info-banner"><p>No numeric columns for visualization</p></div>', unsafe_allow_html=True)
+                            else:
+                                st.markdown('<div class="info-banner"><p>No telemetry data for visualization</p></div>', unsafe_allow_html=True)
                     
                     except Exception as e:
-                        st.error(f"Error loading file: {e}")
+                        st.error(f"FILE ERROR: {e}")
         else:
-            st.info("No telemetry data available. Run data fetcher to collect data.")
+            st.markdown('<div class="info-banner"><p>No telemetry data. Run data fetcher to collect.</p></div>', unsafe_allow_html=True)
     
     except Exception as e:
-        st.error(f"Error: {e}")
+        st.error(f"ERROR: {e}")
 
 
 def show_predictions():
     """Model predictions page"""
-    st.header("Model Predictions")
+    render_back_button()
+    
+    st.markdown("""
+    <div class="section-title">
+        <h2>◐ MODEL OUTPUT</h2>
+        <div class="line"></div>
+    </div>
+    """, unsafe_allow_html=True)
     
     try:
         db = F1Database()
         
-        # Get predictions from database with driver info
         predictions_query = """
         SELECT 
             p.prediction_id,
@@ -517,59 +1305,69 @@ def show_predictions():
         predictions_df = db.execute_query(predictions_query)
         
         if len(predictions_df) > 0:
-            st.subheader("Stored Predictions")
-            
-            # Filter options
-            col1, col2 = st.columns(2)
+            st.markdown('<div class="panel">', unsafe_allow_html=True)
+            col1, col2, col3 = st.columns(3)
             with col1:
                 session_types = predictions_df['session_type'].unique()
-                selected_session = st.selectbox("Session Type", ['All'] + list(session_types))
-            
+                selected_session = st.selectbox("SESSION", ['All'] + list(session_types))
             with col2:
                 model_types = predictions_df['model_type'].unique()
-                selected_model = st.selectbox("Model Type", ['All'] + list(model_types))
+                selected_model = st.selectbox("MODEL", ['All'] + list(model_types))
+            with col3:
+                st.metric("TOTAL", len(predictions_df))
+            st.markdown('</div>', unsafe_allow_html=True)
             
-            # Filter data
             filtered_df = predictions_df.copy()
             if selected_session != 'All':
                 filtered_df = filtered_df[filtered_df['session_type'] == selected_session]
             if selected_model != 'All':
                 filtered_df = filtered_df[filtered_df['model_type'] == selected_model]
             
-            # Display predictions with formatted columns
-            display_cols = ['driver_number', 'driver_name', 'team_name', 'event_name', 
-                          'year', 'session_type', 'predicted_position', 'confidence', 'model_type']
-            available_cols = [col for col in display_cols if col in filtered_df.columns]
-            st.dataframe(filtered_df[available_cols], use_container_width=True)
+            tab_table, tab_viz = st.tabs(["DATA TABLE", "VISUALIZATION"])
             
-            # Visualization
-            if len(filtered_df) > 0 and 'driver_name' in filtered_df.columns:
-                st.subheader("Prediction Visualization")
-                
-                # Create hover text with driver info
-                filtered_df['hover_text'] = (
-                    'Driver: ' + filtered_df['driver_name'].fillna('Unknown') + '<br>' +
-                    'Team: ' + filtered_df['team_name'].fillna('Unknown') + '<br>' +
-                    'Car #: ' + filtered_df['driver_number'].astype(str)
-                )
-                
-                fig = px.scatter(
-                    filtered_df,
-                    x='driver_number',
-                    y='predicted_position',
-                    size='confidence',
-                    color='team_name',
-                    hover_data=['driver_name', 'team_name', 'confidence'],
-                    title="Predictions by Driver",
-                    labels={'driver_number': 'Driver Number', 'predicted_position': 'Predicted Position'}
-                )
-                st.plotly_chart(fig, use_container_width=True)
+            with tab_table:
+                display_cols = ['driver_number', 'driver_name', 'team_name', 'event_name', 
+                              'year', 'session_type', 'predicted_position', 'confidence', 'model_type']
+                available_cols = [col for col in display_cols if col in filtered_df.columns]
+                st.dataframe(filtered_df[available_cols], use_container_width=True, hide_index=True)
+            
+            with tab_viz:
+                if len(filtered_df) > 0 and 'driver_name' in filtered_df.columns:
+                    fig = go.Figure()
+                    
+                    for team in filtered_df['team_name'].dropna().unique():
+                        team_data = filtered_df[filtered_df['team_name'] == team]
+                        fig.add_trace(go.Scatter(
+                            x=team_data['driver_number'],
+                            y=team_data['predicted_position'],
+                            mode='markers',
+                            name=team,
+                            marker=dict(size=team_data['confidence'] * 20 + 5),
+                            hovertemplate='<b>%{text}</b><br>Position: %{y}<br>Confidence: %{marker.size:.2f}<extra></extra>',
+                            text=team_data['driver_name']
+                        ))
+                    
+                    fig.update_layout(
+                        title=dict(text='PREDICTIONS BY DRIVER', font=dict(color='#e8e8e8', size=14)),
+                        paper_bgcolor='rgba(0,0,0,0)',
+                        plot_bgcolor='rgba(22,22,24,1)',
+                        font=dict(family='JetBrains Mono, monospace', color='#8a8a8a'),
+                        xaxis=dict(gridcolor='#2a2a2d', title='DRIVER NUMBER'),
+                        yaxis=dict(gridcolor='#2a2a2d', title='PREDICTED POSITION', autorange='reversed'),
+                        legend=dict(font=dict(size=10))
+                    )
+                    st.plotly_chart(fig, use_container_width=True)
         else:
-            st.info("No predictions available. Train models using the Jupyter notebook.")
+            st.markdown('<div class="info-banner"><p>No predictions available. Train models using notebook.</p></div>', unsafe_allow_html=True)
         
-        # Model information
-        st.markdown("---")
-        st.subheader("Available Models")
+        st.markdown('<div class="divider"></div>', unsafe_allow_html=True)
+        
+        st.markdown("""
+        <div class="panel">
+            <div class="panel-header">
+                <h3>AVAILABLE MODELS</h3>
+            </div>
+        """, unsafe_allow_html=True)
         
         model_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'models')
         if os.path.exists(model_dir):
@@ -577,30 +1375,45 @@ def show_predictions():
             
             if model_files:
                 for model_file in model_files:
-                    st.text(f"✓ {model_file}")
+                    st.markdown(f"""
+                    <div class="feature-item">
+                        <span class="feature-icon">◉</span>
+                        <span>{model_file}</span>
+                    </div>
+                    """, unsafe_allow_html=True)
             else:
-                st.info("No trained models found. Run the ML pipeline notebook.")
+                st.markdown('<div class="info-banner"><p>No trained models found</p></div>', unsafe_allow_html=True)
         else:
-            st.info("Models directory not found.")
+            st.markdown('<div class="info-banner"><p>Models directory not found</p></div>', unsafe_allow_html=True)
+        
+        st.markdown("</div>", unsafe_allow_html=True)
     
     except Exception as e:
-        st.error(f"Error: {e}")
+        st.error(f"ERROR: {e}")
 
 
 def show_feature_importance():
     """Feature importance page"""
-    st.header("Feature Importance & Model Explainability")
+    render_back_button()
+    
+    st.markdown("""
+    <div class="section-title">
+        <h2>◑ FEATURE ANALYSIS</h2>
+        <div class="line"></div>
+    </div>
+    """, unsafe_allow_html=True)
     
     try:
         model_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'models')
         
-        # Check for metadata files
         metadata_files = []
         if os.path.exists(model_dir):
             metadata_files = [f for f in os.listdir(model_dir) if f.endswith('_metadata.json')]
         
         if metadata_files:
-            selected_model = st.selectbox("Select Model", metadata_files)
+            col_select, col_spacer = st.columns([1, 3])
+            with col_select:
+                selected_model = st.selectbox("SELECT MODEL", metadata_files)
             
             if selected_model:
                 metadata_path = os.path.join(model_dir, selected_model)
@@ -608,67 +1421,107 @@ def show_feature_importance():
                 with open(metadata_path, 'r') as f:
                     metadata = json.load(f)
                 
-                st.subheader("Model Information")
-                st.json({
-                    'saved_at': metadata.get('saved_at'),
-                    'features': metadata.get('feature_names', [])
-                })
+                tab_info, tab_importance = st.tabs(["MODEL INFO", "FEATURE IMPORTANCE"])
                 
-                # Feature importance
-                feature_importance = metadata.get('feature_importance', {})
-                
-                if feature_importance:
-                    st.markdown("---")
-                    st.subheader("Feature Importance")
+                with tab_info:
+                    st.markdown("""
+                    <div class="panel">
+                        <div class="panel-header">
+                            <h3>MODEL METADATA</h3>
+                        </div>
+                    """, unsafe_allow_html=True)
                     
-                    # Display for each model type
-                    for model_type, importance in feature_importance.items():
-                        st.write(f"**{model_type.replace('_', ' ').title()}**")
-                        
-                        # Create dataframe for plotting
-                        importance_df = pd.DataFrame(
-                            list(importance.items()),
-                            columns=['Feature', 'Importance']
-                        ).sort_values('Importance', ascending=False)
-                        
-                        # Bar chart
-                        fig = px.bar(
-                            importance_df,
-                            x='Importance',
-                            y='Feature',
-                            orientation='h',
-                            title=f"Feature Importance - {model_type.replace('_', ' ').title()}"
-                        )
-                        st.plotly_chart(fig, use_container_width=True)
-                        
-                        # Table
-                        st.dataframe(importance_df, use_container_width=True)
-                        st.markdown("---")
-                else:
-                    st.info("No feature importance data available in metadata")
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        st.markdown("**SAVED AT:**")
+                        st.code(metadata.get('saved_at', 'Unknown'))
+                    with col2:
+                        features = metadata.get('feature_names', [])
+                        st.markdown(f"**FEATURES:** {len(features)}")
+                    
+                    if features:
+                        with st.expander("VIEW ALL FEATURES"):
+                            for feat in features:
+                                st.markdown(f"- `{feat}`")
+                    
+                    st.markdown("</div>", unsafe_allow_html=True)
+                
+                with tab_importance:
+                    feature_importance = metadata.get('feature_importance', {})
+                    
+                    if feature_importance:
+                        for model_type, importance in feature_importance.items():
+                            st.markdown(f"""
+                            <div class="panel">
+                                <div class="panel-header">
+                                    <h3>{model_type.upper().replace('_', ' ')}</h3>
+                                </div>
+                            """, unsafe_allow_html=True)
+                            
+                            importance_df = pd.DataFrame(
+                                list(importance.items()),
+                                columns=['Feature', 'Importance']
+                            ).sort_values('Importance', ascending=True)
+                            
+                            fig = go.Figure()
+                            fig.add_trace(go.Bar(
+                                y=importance_df['Feature'],
+                                x=importance_df['Importance'],
+                                orientation='h',
+                                marker_color='#f5c518',
+                                marker_line_color='#c9a30e',
+                                marker_line_width=1
+                            ))
+                            fig.update_layout(
+                                paper_bgcolor='rgba(0,0,0,0)',
+                                plot_bgcolor='rgba(22,22,24,1)',
+                                font=dict(family='JetBrains Mono, monospace', color='#8a8a8a'),
+                                xaxis=dict(gridcolor='#2a2a2d', title='IMPORTANCE'),
+                                yaxis=dict(gridcolor='#2a2a2d'),
+                                margin=dict(l=150, t=20),
+                                height=max(300, len(importance_df) * 25)
+                            )
+                            st.plotly_chart(fig, use_container_width=True)
+                            
+                            st.markdown("</div>", unsafe_allow_html=True)
+                    else:
+                        st.markdown('<div class="info-banner"><p>No feature importance data in metadata</p></div>', unsafe_allow_html=True)
         else:
-            st.info("No trained models found. Run the ML pipeline notebook first.")
+            st.markdown('<div class="info-banner"><p>No trained models found. Run ML pipeline notebook.</p></div>', unsafe_allow_html=True)
         
-        # Explanation
-        st.markdown("---")
-        st.subheader("Understanding Feature Importance")
+        st.markdown('<div class="divider"></div>', unsafe_allow_html=True)
         
         st.markdown("""
-        Feature importance indicates which factors most influence the model's predictions:
+        <div class="panel">
+            <div class="panel-header">
+                <h3>INTERPRETATION GUIDE</h3>
+            </div>
+        """, unsafe_allow_html=True)
         
-        - **Higher values** = More influential features
-        - **Lower values** = Less influential features
+        guide_items = [
+            ("HIGHER VALUES", "More influential on predictions"),
+            ("QUALIFYING POSITION", "Strong race outcome predictor"),
+            ("DRIVER/TEAM AVG", "Historical performance factor"),
+            ("RECENT FORM", "Current season momentum"),
+            ("GRID POSITION", "Starting position impact"),
+            ("TRACK EXPERIENCE", "Circuit familiarity bonus")
+        ]
         
-        Common important features:
-        - **Qualifying Position**: Strong predictor of race performance
-        - **Driver/Team Average**: Historical performance matters
-        - **Recent Form**: Current season performance trends
-        - **Grid Position**: Starting position impact
-        - **Track Experience**: Familiarity with circuit
-        """)
+        for title, desc in guide_items:
+            st.markdown(f"""
+            <div class="feature-item">
+                <span class="feature-icon">◉</span>
+                <div class="feature-content">
+                    <h4>{title}</h4>
+                    <p>{desc}</p>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        st.markdown("</div>", unsafe_allow_html=True)
     
     except Exception as e:
-        st.error(f"Error: {e}")
+        st.error(f"ERROR: {e}")
 
 
 if __name__ == "__main__":
