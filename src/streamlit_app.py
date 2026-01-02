@@ -35,6 +35,7 @@ def inject_custom_css():
     st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+    @import url('https://fonts.googleapis.com/icon?family=Material+Icons');
     
     :root {
         --bg-primary: #0a0a0b;
@@ -73,9 +74,24 @@ def inject_custom_css():
         border-right: 1px solid var(--border-color);
     }
     
-    h1, h2, h3, h4, h5, h6, p, span, div, label {
+    h1, h2, h3, h4, h5, h6, p, label {
         font-family: 'JetBrains Mono', monospace !important;
         color: var(--text-primary);
+    }
+
+    /* Ensure Material Icons render correctly even with global font overrides */
+    .material-icons,
+    .material-icons-outlined,
+    .material-icons-round,
+    .material-icons-sharp,
+    .material-icons-two-tone {
+        font-family: 'Material Icons' !important;
+        font-weight: normal !important;
+        font-style: normal !important;
+        text-transform: none !important;
+        letter-spacing: normal !important;
+        -webkit-font-feature-settings: 'liga' !important;
+        -webkit-font-smoothing: antialiased !important;
     }
     
     .main-header {
@@ -338,8 +354,8 @@ def inject_custom_css():
     .stTabs [data-baseweb="tab-list"] {
         background: var(--bg-panel) !important;
         border-radius: 4px !important;
-        padding: 0.25rem !important;
-        gap: 0.25rem !important;
+        padding: 0.4rem !important;
+        gap: 0.6rem !important; /* increase space between tabs */
     }
     
     .stTabs [data-baseweb="tab"] {
@@ -576,11 +592,6 @@ PAGES = {
         "subtitle": "Query and browse tables",
         "icon": "◇"
     },
-    "telemetry": {
-        "title": "TELEMETRY",
-        "subtitle": "Session telemetry viewer",
-        "icon": "◆"
-    },
     "model_predictions": {
         "title": "MODEL OUTPUT",
         "subtitle": "Prediction results",
@@ -626,7 +637,7 @@ def render_navigation():
                 type="secondary" if not is_active else "primary"
             ):
                 st.session_state.current_page = page_id
-                st.rerun()
+                # Streamlit auto-reruns on interaction; no manual rerun needed.
     
     st.markdown('<div class="divider"></div>', unsafe_allow_html=True)
 
@@ -634,7 +645,7 @@ def render_navigation():
 def render_back_button():
     if st.button("← BACK TO CONTROL CENTER", key="back_btn"):
         st.session_state.current_page = 'home'
-        st.rerun()
+        # Streamlit auto-reruns on interaction; no manual rerun needed.
     st.markdown("")
 
 
@@ -645,6 +656,10 @@ def main():
     render_navigation()
     
     page = st.session_state.get('current_page', 'home')
+    # Guard against removed/invalid pages
+    if page not in PAGES:
+        st.session_state.current_page = 'home'
+        page = 'home'
     
     if page == "home":
         show_home()
@@ -654,8 +669,6 @@ def main():
         show_2026_predictions()
     elif page == "database":
         show_database_explorer()
-    elif page == "telemetry":
-        show_telemetry_viewer()
     elif page == "model_predictions":
         show_predictions()
     elif page == "features":

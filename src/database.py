@@ -8,6 +8,7 @@ import psycopg2.extras
 import pandas as pd
 import os
 from datetime import datetime
+
 import json
 
 
@@ -31,7 +32,7 @@ class F1Database:
                 'port': os.getenv('POSTGRES_PORT', '5432'),
                 'database': os.getenv('POSTGRES_DB', 'f1_data'),
                 'user': os.getenv('POSTGRES_USER', 'postgres'),
-                'password': os.getenv('POSTGRES_PASSWORD', 'hdemus')
+                'password': os.getenv('POSTGRES_PASSWORD', 'ramita05')
             }
         self.db_config = db_config
         self.conn = None
