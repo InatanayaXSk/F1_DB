@@ -8,8 +8,12 @@ import psycopg2.extras
 import pandas as pd
 import os
 from datetime import datetime
+from dotenv import load_dotenv
 
 import json
+
+# Load environment variables from .env file
+load_dotenv()
 
 
 class F1Database:
