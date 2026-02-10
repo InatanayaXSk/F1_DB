@@ -35,6 +35,15 @@ flowchart TD
     D3 -->|Telemetry laps| P3
     P3 -->|Visual insights| U
     U -->|Filters, scenario questions| P3
+
+    classDef source fill:#ffe082,stroke:#bf360c,stroke-width:2px,color:#4e342e;
+    classDef process fill:#80cbc4,stroke:#004d40,stroke-width:2px,color:#00332f;
+    classDef store fill:#9fa8da,stroke:#1a237e,stroke-width:2px,color:#0d133d;
+    classDef user fill:#ffab91,stroke:#d84315,stroke-width:2px,color:#4e342e;
+    class A source;
+    class P1,P2,P3 process;
+    class D1,D2,D3,D4 store;
+    class U user;
 ```
 
 The level 1 diagram frames the entire platform: FastF1 exposes time-series data, [src/data_fetcher.py](src/data_fetcher.py) centralizes ingestion, three storage mediums persist different shapes of data, and both the ML pipeline and Streamlit dashboard read from the stores while feeding insights back to analysts.
@@ -64,6 +73,15 @@ flowchart TD
     D3 -->|Telemetry slices| C1
     D2 -->|Leaderboards, predictions| C2
     D3 -->|Lap overlays| C2
+
+    classDef source fill:#ffd54f,stroke:#ff6f00,stroke-width:2px,color:#4e342e;
+    classDef transform fill:#4db6ac,stroke:#00695c,stroke-width:2px,color:#00332f;
+    classDef store fill:#b39ddb,stroke:#4527a0,stroke-width:2px,color:#2a1160;
+    classDef consumer fill:#ffab91,stroke:#d84315,stroke-width:2px,color:#4e342e;
+    class A source;
+    class P1,P2,P3 transform;
+    class D1,D2,D3 store;
+    class C1,C2 consumer;
 ```
 
 Level 2 breaks the ingestion process into request, normalization, and persistence steps while emphasizing that Redis accelerates replays and both downstream consumers reuse the curated outputs.
@@ -97,6 +115,13 @@ flowchart TD
     D5 --> UI
     D2 --> NB
     D4 --> NB
+
+    classDef store fill:#c5cae9,stroke:#283593,stroke-width:2px,color:#1a237e;
+    classDef stage fill:#ffcc80,stroke:#ef6c00,stroke-width:2px,color:#4e342e;
+    classDef consumer fill:#ffe082,stroke:#bf360c,stroke-width:2px,color:#4e342e;
+    class D2,D3,D4,D5 store;
+    class F1,F2,F3,F4 stage;
+    class UI,NB consumer;
 ```
 
 The level 3 view zooms in on the ML notebook and automation path: relational data and telemetry power feature creation, models are trained and scored, validated artifacts are versioned, and predictions plus explainability outputs feed both the analytical notebook and the live dashboard.
@@ -121,6 +146,8 @@ erDiagram
         string tyre_usage "Compound-lap pairs"
         string model_predictions "Serialized JSON"
     }
+
+    style RAW_FASTF1_CAPTURE fill:#ffe082,stroke:#bf360c,stroke-width:2px,color:#4e342e;
 ```
 
 The initial capture mirrors the FastF1 bundle: multi-valued arrays mix driver, team, laps, and predictions inside a single record, violating First Normal Form because repeating groups and nested structures coexist in one row.
@@ -149,6 +176,9 @@ erDiagram
     }
 
     EVENT_HEADER ||--o{ SESSION_ENTRY : contains
+
+    style EVENT_HEADER fill:#c5e1a5,stroke:#33691e,stroke-width:2px,color:#1b5e20;
+    style SESSION_ENTRY fill:#fff59d,stroke:#f57f17,stroke-width:2px,color:#5d4037;
 ```
 
 The 1NF stage flattens repeating groups so every session-driver combination is a separate row. However, attributes such as driver_name and team_name still depend only on part of the composite key (event_id, session_type, driver_number), leaving partial dependency issues for 2NF.
@@ -190,6 +220,11 @@ erDiagram
     EVENT ||--o{ SESSION_RESULT : includes
     DRIVER ||--o{ SESSION_RESULT : competes
     TEAM ||--o{ DRIVER : employs
+
+    style EVENT fill:#b3e5fc,stroke:#0277bd,stroke-width:2px,color:#01579b;
+    style SESSION_RESULT fill:#ffe082,stroke:#fb8c00,stroke-width:2px,color:#6d4c41;
+    style DRIVER fill:#c5cae9,stroke:#303f9f,stroke-width:2px,color:#1a237e;
+    style TEAM fill:#d7ccc8,stroke:#5d4037,stroke-width:2px,color:#3e2723;
 ```
 
 By isolating DRIVER and TEAM, every non-key attribute in SESSION_RESULT depends on the full primary key, eliminating partial dependencies. Team details are now referenced through surrogate keys, yet TEAM still carries year-specific context inside its rows, creating a transitive dependency.
@@ -320,9 +355,171 @@ erDiagram
     DRIVER ||--o{ PREDICTION : receives
     TEAM ||--o{ DRIVER_SEASON : assigns
     DRIVER ||--o{ DRIVER_SEASON : signs
+
+    style RACE fill:#b3e5fc,stroke:#01579b,stroke-width:2px,color:#0d47a1;
+    style SESSION fill:#c8e6c9,stroke:#2e7d32,stroke-width:2px,color:#1b5e20;
+    style TEAM fill:#ffe082,stroke:#ef6c00,stroke-width:2px,color:#5d4037;
+    style DRIVER fill:#d1c4e9,stroke:#5e35b1,stroke-width:2px,color:#311b92;
+    style DRIVER_SEASON fill:#ffccbc,stroke:#d84315,stroke-width:2px,color:#4e342e;
+    style QUALIFYING_RESULT fill:#fff59d,stroke:#fdd835,stroke-width:2px,color:#5d4037;
+    style SPRINT_RESULT fill:#ffe0b2,stroke:#fb8c00,stroke-width:2px,color:#5d4037;
+    style RACE_RESULT fill:#ffab91,stroke:#e64a19,stroke-width:2px,color:#4e342e;
+    style AGGREGATED_LAP fill:#b2dfdb,stroke:#00897b,stroke-width:2px,color:#004d40;
+    style TYRE_STAT fill:#c5cae9,stroke:#3949ab,stroke-width:2px,color:#1a237e;
+    style PREDICTION fill:#ffe082,stroke:#ff8f00,stroke-width:2px,color:#4e342e;
 ```
 
 The 3NF model removes transitive dependencies by splitting driver-team assignments into DRIVER_SEASON, isolating sessions, and distributing telemetry, tyre, and prediction facts into purpose-built entities. Every non-key attribute depends solely on its primary key.
+
+### Boyce-Codd Normal Form (BCNF)
+
+```mermaid
+erDiagram
+    RACE {
+        int race_id PK
+        int season_year
+        int round_number
+        string event_name
+        string country
+        string location
+        string event_date
+    }
+
+    SESSION {
+        int session_id PK
+        int race_id FK
+        string session_type
+        string session_date
+        string weather_conditions
+        float track_temp
+        float air_temp
+    }
+
+    TEAM {
+        int team_id PK
+        string team_name
+    }
+
+    DRIVER {
+        int driver_id PK
+        string full_name
+    }
+
+    DRIVER_NUMBER {
+        int driver_number_id PK
+        int driver_id FK
+        int driver_number
+        int season_year
+    }
+
+    DRIVER_SEASON {
+        int assignment_id PK
+        int driver_id FK
+        int team_id FK
+        int season_year
+    }
+
+    QUALIFYING_RESULT {
+        int result_id PK
+        int session_id FK
+        int driver_id FK
+        int position
+        string q1_time
+        string q2_time
+        string q3_time
+    }
+
+    SPRINT_RESULT {
+        int result_id PK
+        int session_id FK
+        int driver_id FK
+        int position
+        float points
+        string status
+    }
+
+    RACE_RESULT {
+        int result_id PK
+        int session_id FK
+        int driver_id FK
+        int position
+        float points
+        int grid_position
+        string status
+        string fastest_lap_time
+    }
+
+    AGGREGATED_LAP {
+        int lap_id PK
+        int session_id FK
+        int driver_id FK
+        int lap_number
+        float lap_time
+        float sector1_time
+        float sector2_time
+        float sector3_time
+        string compound
+        int tyre_life
+        int is_personal_best
+    }
+
+    TYRE_STAT {
+        int tyre_stat_id PK
+        int session_id FK
+        int driver_id FK
+        string compound
+        int stint_number
+        int total_laps
+        float avg_lap_time
+        float degradation_slope
+        float best_lap_time
+    }
+
+    PREDICTION {
+        int prediction_id PK
+        int session_id FK
+        int driver_id FK
+        string model_type
+        int predicted_position
+        float predicted_time
+        float confidence
+        float top10_probability
+        string features_json
+        string shap_values_json
+    }
+
+    RACE ||--o{ SESSION : includes
+    SESSION ||--o{ QUALIFYING_RESULT : records
+    SESSION ||--o{ SPRINT_RESULT : records
+    SESSION ||--o{ RACE_RESULT : records
+    SESSION ||--o{ AGGREGATED_LAP : logs
+    SESSION ||--o{ TYRE_STAT : aggregates
+    SESSION ||--o{ PREDICTION : forecasts
+    DRIVER ||--o{ DRIVER_NUMBER : assigned
+    DRIVER ||--o{ QUALIFYING_RESULT : competes
+    DRIVER ||--o{ SPRINT_RESULT : competes
+    DRIVER ||--o{ RACE_RESULT : competes
+    DRIVER ||--o{ AGGREGATED_LAP : drives
+    DRIVER ||--o{ TYRE_STAT : uses
+    DRIVER ||--o{ PREDICTION : receives
+    TEAM ||--o{ DRIVER_SEASON : assigns
+    DRIVER ||--o{ DRIVER_SEASON : signs
+
+    style RACE fill:#b3e5fc,stroke:#01579b,stroke-width:2px,color:#0d47a1;
+    style SESSION fill:#c8e6c9,stroke:#2e7d32,stroke-width:2px,color:#1b5e20;
+    style TEAM fill:#ffe082,stroke:#ef6c00,stroke-width:2px,color:#5d4037;
+    style DRIVER fill:#d1c4e9,stroke:#5e35b1,stroke-width:2px,color:#311b92;
+    style DRIVER_NUMBER fill:#f8bbd0,stroke:#c2185b,stroke-width:2px,color:#880e4f;
+    style DRIVER_SEASON fill:#ffccbc,stroke:#d84315,stroke-width:2px,color:#4e342e;
+    style QUALIFYING_RESULT fill:#fff59d,stroke:#fdd835,stroke-width:2px,color:#5d4037;
+    style SPRINT_RESULT fill:#ffe0b2,stroke:#fb8c00,stroke-width:2px,color:#5d4037;
+    style RACE_RESULT fill:#ffab91,stroke:#e64a19,stroke-width:2px,color:#4e342e;
+    style AGGREGATED_LAP fill:#b2dfdb,stroke:#00897b,stroke-width:2px,color:#004d40;
+    style TYRE_STAT fill:#c5cae9,stroke:#3949ab,stroke-width:2px,color:#1a237e;
+    style PREDICTION fill:#ffe082,stroke:#ff8f00,stroke-width:2px,color:#4e342e;
+```
+
+The BCNF refinement addresses a subtle violation in the 3NF schema: in the DRIVER table, driver_number functionally determines driver_id within a season, but driver_number alone is not a superkey. Since drivers can change numbers across seasons (though rare), the determinant (driver_number, season_year) must be isolated. The new DRIVER_NUMBER table captures this many-to-many relationship, ensuring every determinant in every functional dependency is a candidate key. This also removes driver_number from the DRIVER entity, leaving only immutable driver identity attributes.
 
 ### Actual Operational Schema (Production Alignment)
 
@@ -450,6 +647,17 @@ erDiagram
     DRIVERS ||--o{ PREDICTION : receives
     DRIVERS ||--o{ AGGREGATED_LAP : drives
     DRIVERS ||--o{ TYRE_STAT : uses
+
+    style DRIVERS fill:#d1c4e9,stroke:#5e35b1,stroke-width:2px,color:#311b92;
+    style TEAMS fill:#ffe082,stroke:#ef6c00,stroke-width:2px,color:#5d4037;
+    style RACES fill:#b3e5fc,stroke:#01579b,stroke-width:2px,color:#0d47a1;
+    style SESSIONS fill:#c8e6c9,stroke:#2e7d32,stroke-width:2px,color:#1b5e20;
+    style QUALIFYING_RESULT fill:#fff59d,stroke:#fdd835,stroke-width:2px,color:#5d4037;
+    style SPRINT_RESULT fill:#ffe0b2,stroke:#fb8c00,stroke-width:2px,color:#5d4037;
+    style RACE_RESULT fill:#ffab91,stroke:#e64a19,stroke-width:2px,color:#4e342e;
+    style AGGREGATED_LAP fill:#b2dfdb,stroke:#00897b,stroke-width:2px,color:#004d40;
+    style TYRE_STAT fill:#c5cae9,stroke:#3949ab,stroke-width:2px,color:#1a237e;
+    style PREDICTION fill:#ffe082,stroke:#ff8f00,stroke-width:2px,color:#4e342e;
 ```
 
 The deployed database mirrors the entity set described in [docs/dgm.md](docs/dgm.md). Driver rows intentionally retain the team_name for the given season to streamline analytical queries, while race-centric tables separate qualifying, sprint, race, telemetry, tyre, and prediction facts without duplicating session metadata.
