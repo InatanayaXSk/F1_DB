@@ -6,6 +6,7 @@ Manages F1 data storage in PostgreSQL database
 import psycopg2
 import psycopg2.extras
 import pandas as pd
+import numpy as np
 import os
 from datetime import datetime
 from dotenv import load_dotenv
@@ -14,6 +15,21 @@ import json
 
 # Load environment variables from .env file
 load_dotenv()
+
+
+def convert_to_python_type(value):
+    """Convert numpy types to Python native types for psycopg2 compatibility"""
+    if value is None or pd.isna(value):
+        return None
+    if isinstance(value, (np.integer, np.int64, np.int32, np.int16, np.int8)):
+        return int(value)
+    if isinstance(value, (np.floating, np.float64, np.float32)):
+        return float(value)
+    if isinstance(value, np.bool_):
+        return bool(value)
+    if isinstance(value, np.ndarray):
+        return value.tolist()
+    return value
 
 
 class F1Database:
@@ -144,13 +160,9 @@ class F1Database:
                 session_type TEXT,
                 driver_number INTEGER,
                 predicted_position INTEGER,
-                predicted_time REAL,
                 confidence REAL,
-                top10_probability REAL,
                 model_type TEXT,
                 prediction_date TEXT,
-                features_json TEXT,
-                shap_values_json TEXT,
                 FOREIGN KEY (race_id) REFERENCES races(race_id)
             )
         ''')
@@ -215,32 +227,10 @@ class F1Database:
         self.upgrade_database()
     
     def upgrade_database(self):
-        """Upgrade existing database schema with new columns"""
-        conn = self.connect()
-        cursor = conn.cursor()
-        try:
-            cursor.execute("""
-                SELECT column_name 
-                FROM information_schema.columns 
-                WHERE table_name = 'predictions'
-            """)
-            columns = [col[0] for col in cursor.fetchall()]
-
-            if 'predicted_time' not in columns:
-                cursor.execute('ALTER TABLE predictions ADD COLUMN predicted_time REAL')
-                print("✓ Added predicted_time column to predictions table")
-            if 'top10_probability' not in columns:
-                cursor.execute('ALTER TABLE predictions ADD COLUMN top10_probability REAL')
-                print("✓ Added top10_probability column to predictions table")
-            if 'shap_values_json' not in columns:
-                cursor.execute('ALTER TABLE predictions ADD COLUMN shap_values_json TEXT')
-                print("✓ Added shap_values_json column to predictions table")
-
-            conn.commit()
-        except Exception as e:
-            print(f"Migration note: {e}")
-        finally:
-            self.close()
+        """Upgrade existing database schema with new columns (deprecated - columns removed)"""
+        # Migration code removed - predicted_time, top10_probability, features_json, 
+        # and shap_values_json columns have been removed from predictions table
+        pass
     
     def insert_driver(self, driver_number, abbreviation, full_name, team_name, year):
         """Insert driver information (upsert on (driver_number, year))"""
@@ -255,7 +245,13 @@ class F1Database:
                     abbreviation = EXCLUDED.abbreviation,
                     full_name = EXCLUDED.full_name,
                     team_name = EXCLUDED.team_name
-            """, (driver_number, abbreviation, full_name, team_name, year))
+            """, (
+                convert_to_python_type(driver_number),
+                abbreviation,
+                full_name,
+                team_name,
+                convert_to_python_type(year)
+            ))
             conn.commit()
         except Exception as e:
             print(f"Error inserting driver: {e}")
@@ -271,7 +267,7 @@ class F1Database:
                 INSERT INTO teams (team_name, year)
                 VALUES (%s, %s)
                 ON CONFLICT (team_name, year) DO NOTHING
-            """, (team_name, year))
+            """, (team_name, convert_to_python_type(year)))
             conn.commit()
         except Exception as e:
             print(f"Error inserting team: {e}")
@@ -293,7 +289,14 @@ class F1Database:
                     location = EXCLUDED.location,
                     event_date = EXCLUDED.event_date
                 RETURNING race_id
-            """, (year, round_number, event_name, country, location, str(event_date)))
+            """, (
+                convert_to_python_type(year),
+                convert_to_python_type(round_number),
+                event_name,
+                country,
+                location,
+                str(event_date)
+            ))
             race_id = cursor.fetchone()[0]
             conn.commit()
             return race_id
@@ -308,15 +311,16 @@ class F1Database:
         conn = self.connect()
         cursor = conn.cursor()
         try:
-            # Ensure native Python types (avoid numpy types)
-            race_id = int(race_id) if race_id is not None else None
-            driver_number = int(driver_number) if driver_number is not None else None
-            position = int(position) if position is not None else None
             cursor.execute("""
                 INSERT INTO qualifying_results 
                     (race_id, driver_number, position, q1_time, q2_time, q3_time)
                 VALUES (%s, %s, %s, %s, %s, %s)
-            """, (race_id, driver_number, position, str(q1), str(q2), str(q3)))
+            """, (
+                convert_to_python_type(race_id),
+                convert_to_python_type(driver_number),
+                convert_to_python_type(position),
+                str(q1), str(q2), str(q3)
+            ))
             conn.commit()
         except Exception as e:
             print(f"Error inserting qualifying result: {e}")
@@ -328,17 +332,19 @@ class F1Database:
         conn = self.connect()
         cursor = conn.cursor()
         try:
-            # Ensure native Python types (avoid numpy types)
-            race_id = int(race_id) if race_id is not None else None
-            driver_number = int(driver_number) if driver_number is not None else None
-            position = int(position) if position is not None else None
-            points = float(points) if points is not None else None
-            grid_position = int(grid_position) if grid_position is not None else None
             cursor.execute("""
                 INSERT INTO race_results 
                     (race_id, driver_number, position, points, grid_position, status, fastest_lap_time)
                 VALUES (%s, %s, %s, %s, %s, %s, %s)
-            """, (race_id, driver_number, position, points, grid_position, status, str(fastest_lap)))
+            """, (
+                convert_to_python_type(race_id),
+                convert_to_python_type(driver_number),
+                convert_to_python_type(position),
+                convert_to_python_type(points),
+                convert_to_python_type(grid_position),
+                status,
+                str(fastest_lap) if fastest_lap else None
+            ))
             conn.commit()
         except Exception as e:
             print(f"Error inserting race result: {e}")
@@ -346,21 +352,24 @@ class F1Database:
             self.close()
     
     def insert_prediction(self, race_id, session_type, driver_number, predicted_position, 
-                          confidence, model_type, features, predicted_time=None, 
-                          top10_probability=None, shap_values=None):
+                          confidence, model_type):
         """Insert prediction result"""
         conn = self.connect()
         cursor = conn.cursor()
         try:
             cursor.execute("""
                 INSERT INTO predictions 
-                    (race_id, session_type, driver_number, predicted_position, predicted_time,
-                     confidence, top10_probability, model_type, prediction_date, features_json, shap_values_json)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    (race_id, session_type, driver_number, predicted_position,
+                     confidence, model_type, prediction_date)
+                VALUES (%s, %s, %s, %s, %s, %s, %s)
             """, (
-                race_id, session_type, driver_number, predicted_position, predicted_time,
-                confidence, top10_probability, model_type, datetime.now().isoformat(),
-                json.dumps(features), json.dumps(shap_values) if shap_values else None
+                convert_to_python_type(race_id),
+                session_type,
+                convert_to_python_type(driver_number),
+                convert_to_python_type(predicted_position),
+                convert_to_python_type(confidence),
+                model_type,
+                datetime.now().isoformat()
             ))
             conn.commit()
         except Exception as e:
@@ -382,8 +391,18 @@ class F1Database:
                      track_status, is_personal_best)
                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             """, (
-                race_id, session_type, driver_number, lap_number, lap_time,
-                sector1, sector2, sector3, compound, tyre_life, track_status, is_personal_best
+                convert_to_python_type(race_id),
+                session_type,
+                convert_to_python_type(driver_number),
+                convert_to_python_type(lap_number),
+                convert_to_python_type(lap_time),
+                convert_to_python_type(sector1),
+                convert_to_python_type(sector2),
+                convert_to_python_type(sector3),
+                compound,
+                convert_to_python_type(tyre_life),
+                track_status,
+                convert_to_python_type(is_personal_best)
             ))
             conn.commit()
         except Exception as e:
@@ -403,8 +422,15 @@ class F1Database:
                      avg_lap_time, degradation_slope, best_lap_time, stint_number)
                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
             """, (
-                race_id, session_type, driver_number, compound, total_laps,
-                avg_lap_time, degradation_slope, best_lap_time, stint_number
+                convert_to_python_type(race_id),
+                session_type,
+                convert_to_python_type(driver_number),
+                compound,
+                convert_to_python_type(total_laps),
+                convert_to_python_type(avg_lap_time),
+                convert_to_python_type(degradation_slope),
+                convert_to_python_type(best_lap_time),
+                convert_to_python_type(stint_number)
             ))
             conn.commit()
         except Exception as e:
@@ -429,7 +455,14 @@ class F1Database:
                     track_temp = EXCLUDED.track_temp,
                     air_temp = EXCLUDED.air_temp
                 RETURNING session_id
-            """, (race_id, session_type, str(session_date), weather_conditions, track_temp, air_temp))
+            """, (
+                convert_to_python_type(race_id),
+                session_type,
+                str(session_date),
+                weather_conditions,
+                convert_to_python_type(track_temp),
+                convert_to_python_type(air_temp)
+            ))
             session_id = cursor.fetchone()[0]
             conn.commit()
             return session_id
