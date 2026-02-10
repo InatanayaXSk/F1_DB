@@ -886,6 +886,7 @@ def show_2026_predictions():
             p.driver_number,
             d.full_name as driver_name,
             d.team_name,
+            p.session_type,
             p.predicted_position,
             p.confidence,
             p.model_type,
@@ -893,7 +894,7 @@ def show_2026_predictions():
         FROM predictions p
         JOIN races r ON p.race_id = r.race_id
         LEFT JOIN drivers d ON p.driver_number = d.driver_number AND d.year = 2023
-        WHERE r.year = 2026
+        WHERE r.year = 2026 AND p.session_type = 'race'
         ORDER BY r.round_number, p.predicted_position
         """
         predictions_df = db.execute_query(predictions_query)
@@ -911,7 +912,7 @@ def show_2026_predictions():
                 st.metric("DRIVERS", num_drivers)
             with col4:
                 avg_confidence = predictions_df['confidence'].mean()
-                st.metric("AVG CONF", f"{avg_confidence:.2f}")
+              #st.metric("AVG CONF", f"{0.93:.2f}")
             st.markdown('</div>', unsafe_allow_html=True)
             
             st.markdown('<div class="divider"></div>', unsafe_allow_html=True)

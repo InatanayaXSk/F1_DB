@@ -36,7 +36,7 @@ class F1Database:
                 'port': os.getenv('POSTGRES_PORT', '5432'),
                 'database': os.getenv('POSTGRES_DB', 'f1_data'),
                 'user': os.getenv('POSTGRES_USER', 'postgres'),
-                'password': os.getenv('POSTGRES_PASSWORD', 'ramita05')
+                'password': os.getenv('POSTGRES_PASSWORD', 'postgres')
             }
         self.db_config = db_config
         self.conn = None
